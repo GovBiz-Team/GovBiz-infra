@@ -1,0 +1,25 @@
+# Django의 단독 Compose를 재사용하고 통합 환경에서 충돌하는 이름만 조정합니다.
+services:
+  django-api:
+    extends:
+      file: ./services/SKN34-4th-1Team/compose.yaml
+      service: web
+    env_file: !override
+      - ${GOVBIZ_DJANGO_ENV_FILE:-./services/SKN34-4th-1Team/.env}
+    environment:
+      DB_HOST: django-mysql
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1},django-api
+    depends_on: !override
+      django-mysql:
+        condition: service_healthy
+
+  django-mysql:
+    extends:
+      file: ./services/SKN34-4th-1Team/compose.yaml
+      service: db
+    volumes:
+      # 동일한 /var/lib/mysql 대상만 교체하여 원본 초기화 SQL 마운트는 유지합니다.
+      - django-mysql-data:/var/lib/mysql
+
+volumes:
+  django-mysql-data:

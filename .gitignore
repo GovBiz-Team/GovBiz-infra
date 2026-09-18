@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+*.local.yaml
+__pycache__/
+*.py[cod]
+.tools/
+.DS_Store
+.idea/
+.vscode/
