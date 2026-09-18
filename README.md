@@ -13,6 +13,11 @@ GovBiz 서비스를 함께 실행하기 위한 **별도 인프라 저장소**입
 현재 구성은 **로컬 개발용**입니다. 기존 AWS 배포 설정을 이전하거나 새 운영 배포를 수행하지 않습니다.
 Django는 상태 확인 API까지 구현되어 있으며 기존 서비스의 업무·인증 API 연결은 별도 작업입니다.
 
+## MSA·Kubernetes·Argo CD 전환 계획
+
+[전환 설계](docs/msa-kubernetes-argocd-plan.md)에 현재 구조, 서비스 분리 후보, Kubernetes·Argo CD 도입 순서를 정리했습니다.
+현재는 설계 단계이며 Kubernetes 배포나 서비스 분리가 적용된 상태는 아닙니다.
+
 ## 구조
 
 ```text
