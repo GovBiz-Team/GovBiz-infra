@@ -2,11 +2,12 @@
 
 GovBiz 서비스를 함께 실행하기 위한 **별도 인프라 저장소**입니다.
 애플리케이션 코드는 두 Git submodule에 있으며, 브랜치·PR·리뷰·CI는 각 서비스 저장소에서 독립적으로 관리합니다.
+서비스의 `origin`은 `ilil1/SKN34-3rd-1Team`, `ilil1/SKN34-4th-1Team` 포크를 가리키며, 작업 브랜치도 해당 포크에 푸시합니다.
 
 | 저장소 | 책임 |
 | --- | --- |
-| [SKN34-3rd-1Team](https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN34-3rd-1Team) | React, Spring Boot, FastAPI AI 서비스와 기존 데이터 서비스 |
-| [SKN34-4th-1Team](https://github.com/SKNETWORKS-FAMILY-AICAMP/SKN34-4th-1Team) | Django 서비스와 전용 MySQL |
+| [SKN34-3rd-1Team](https://github.com/ilil1/SKN34-3rd-1Team) | React, Spring Boot, FastAPI AI 서비스와 기존 데이터 서비스 |
+| [SKN34-4th-1Team](https://github.com/ilil1/SKN34-4th-1Team) | Django 서비스와 전용 MySQL |
 | [GovBiz-infra](https://github.com/GovBiz-Team/GovBiz-infra) | 통합 Compose, 네트워크, 데이터 볼륨 연결, 사용할 서비스 커밋 |
 
 현재 구성은 **로컬 개발용**입니다. 기존 AWS 배포 설정을 이전하거나 새 운영 배포를 수행하지 않습니다.
@@ -43,7 +44,7 @@ git clone --recurse-submodules https://github.com/GovBiz-Team/GovBiz-infra.git
 cd GovBiz-infra
 ```
 
-이미 복제했다면 `git submodule update --init --recursive`로 누락된 저장소를 받습니다.
+이미 복제했다면 `git submodule sync --recursive`로 `.gitmodules`의 원격 주소를 로컬에 반영한 뒤, `git submodule update --init --recursive`로 기록된 커밋을 받습니다.
 일반 실행에서는 `git submodule update --remote`를 사용하지 않습니다.
 인프라 커밋에 기록된 서비스 버전을 사용해야 팀원들이 같은 구성을 재현할 수 있습니다.
 
@@ -203,6 +204,7 @@ git push -u origin chore/update-django-version
 
 ```bash
 git pull
+git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
