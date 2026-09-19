@@ -8,3 +8,7 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# Legacy local checkouts are preserved for recovery, but are no longer submodules.
+# Application development now happens in the standalone GovBiz-web checkout.
+/services/
