@@ -16,14 +16,14 @@ class AppImageResourcesTests(unittest.TestCase):
         return [
             {
                 "kind": "Deployment",
-                "metadata": {"name": "operations-api"},
+                "metadata": {"name": "ops-service"},
                 "spec": {
                     "template": {
                         "spec": {
                             "containers": [
                                 {
-                                    "name": "operations-api",
-                                    "image": "govbiz-ops:local-k8s",
+                                    "name": "ops-service",
+                                    "image": "govbiz-ops-service:local-k8s",
                                 }
                             ]
                         }
@@ -34,24 +34,24 @@ class AppImageResourcesTests(unittest.TestCase):
 
     def test_only_rendered_app_image_changes_without_mutating_input(self):
         original = self.fixture()
-        rendered = smoke.app_image_resources(original, "govbiz-ops:checked-build")
+        rendered = smoke.app_image_resources(original, "govbiz-ops-service:checked-build")
         self.assertEqual(original, self.fixture())
         expected = self.fixture()
         expected[0]["spec"]["template"]["spec"]["containers"][0]["image"] = (
-            "govbiz-ops:checked-build"
+            "govbiz-ops-service:checked-build"
         )
         self.assertEqual(rendered, expected)
 
     def test_missing_duplicate_or_unexpected_image_is_rejected(self):
         for resources in ([], self.fixture() + self.fixture()):
             with self.subTest(resources=resources), self.assertRaises(RuntimeError):
-                smoke.app_image_resources(resources, "govbiz-ops:test")
+                smoke.app_image_resources(resources, "govbiz-ops-service:test")
         resources = self.fixture()
         resources[0]["spec"]["template"]["spec"]["containers"][0]["image"] = (
             "unexpected:test"
         )
         with self.assertRaises(RuntimeError):
-            smoke.app_image_resources(resources, "govbiz-ops:test")
+            smoke.app_image_resources(resources, "govbiz-ops-service:test")
 
 
 class HttpBody(io.BytesIO):
@@ -63,7 +63,7 @@ class HttpBody(io.BytesIO):
 class ImageValidationTests(unittest.TestCase):
     def test_explicit_non_latest_tags_are_accepted(self):
         for image in (
-            "govbiz-ops:smoke-20260919",
+            "govbiz-ops-service:smoke-20260919",
             "localhost:5000/govbiz/ops:sha_2385107",
             "registry.example.test/team/ops:release.1",
         ):
@@ -73,18 +73,18 @@ class ImageValidationTests(unittest.TestCase):
     def test_ambiguous_or_unsafe_image_inputs_are_rejected(self):
         for image in (
             "",
-            "govbiz-ops",
-            "govbiz-ops:",
-            "govbiz-ops:latest",
+            "govbiz-ops-service",
+            "govbiz-ops-service:",
+            "govbiz-ops-service:latest",
             "localhost:5000/govbiz/ops",
-            "govbiz-ops:-invalid",
-            "govbiz-ops:" + "a" * 129,
-            "govbiz-ops@sha256:" + "a" * 64,
-            "govbiz-ops:tag@sha256:" + "a" * 64,
+            "govbiz-ops-service:-invalid",
+            "govbiz-ops-service:" + "a" * 129,
+            "govbiz-ops-service@sha256:" + "a" * 64,
+            "govbiz-ops-service:tag@sha256:" + "a" * 64,
             "https://registry.example.test/ops:tag",
-            "govbiz-ops:tag with space",
-            "govbiz-ops:tag\n",
-            "govbiz-ops:tag;echo",
+            "govbiz-ops-service:tag with space",
+            "govbiz-ops-service:tag\n",
+            "govbiz-ops-service:tag;echo",
             "$(id):tag",
             "--help:tag",
         ):

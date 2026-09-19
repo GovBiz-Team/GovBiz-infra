@@ -1,10 +1,26 @@
 # 로컬 Kubernetes 검증 기록 — 2026-09-19
 
+> 과거 검토·검증 기록입니다. 현재 운영 환경은 없으며 현재 컨테이너·DNS는 `core-service`·`ops-service`(Ops DB: `ops-mysql`)로 통일했습니다. 아래 당시 커밋 링크·이미지 ID·출력은 증거 보존을 위해 변경하지 않습니다. 현재 실행 절차는 [로컬 Kubernetes 안내](kubernetes-local.md)를 따릅니다.
+
 > 이 문서의 Core API/Core, Catalog, AI Service/AI, Ops는 당시 표기입니다. 현재 서비스명은 각각
 > `core-service`, `catalog-service`, `ai-service`, `ops-service`입니다. 본문의 검증 수치·이미지 태그·
 > 커밋 고정 경로는 당시 기록을 보존하며, 최신 구성은 [메인 README](../README.md)를 따릅니다.
 
-## 판정과 범위
+## 서비스명 통일 후 재검증
+
+아래 최초 검증과 별도로, GovBiz `2c65c235`와 GovBiz-infra `714da2c8`에 런타임 이름 변경을 더한
+작업 트리를 다시 검증했다. 검증 시점에는 해당 변경을 커밋·푸시하지 않았고 운영 환경은 없었다.
+
+- Deployment·Service·컨테이너·ConfigMap 경로: `ops-service`, DB Service: `ops-mysql`.
+- 로컬 이미지: `govbiz-ops-service:runtime-rename-20260919-2118`.
+- Docker 이미지 ID: `sha256:baefa5a20276d7a43ef24e24c71c7382ae25ea9cf95ecf48d9da3986c510d96e`.
+- 실행 플랫폼 ID: `sha256:467914c335178cd05c5f6a43c90f552fcd6a658d2903a9a8ab39372edb3c36c7`.
+- 구성·도구 테스트 35개 통과. 실제 API 서버 strict dry-run과 `govbiz-ops-service` health 식별자 확인.
+- MySQL DNS·readiness, DB 장애 시 readiness 503/liveness 200, PVC 데이터 보존, Pod 재생성, 실패 이미지 rollout과 이전 이미지 복구 통과.
+- 첫 시도는 서비스 배포 전 kind control-plane 시작에 실패했다. 이미지 빌드 등 다른 검증을 마친 뒤 재시도하여 `GOVBIZ_KUBERNETES_LOCAL_OK`를 확인했다.
+- 테스트 클러스터 `govbiz-k8s-smoke-45efe76889`와 그 검증용 Secret·PVC만 정리했다. 기존 개발 컨테이너·볼륨과 AWS는 변경하지 않았다.
+
+## 최초 검증의 판정과 범위
 
 **Ops + 전용 검증 MySQL의 로컬 Kubernetes 실행·장애·복구 검증을 통과했다.**
 AWS 운영 서버는 기존 EC2 Compose 그대로이며, Core·AI의 Kubernetes 이전이나

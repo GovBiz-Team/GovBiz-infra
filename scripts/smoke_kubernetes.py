@@ -65,13 +65,13 @@ def app_image_resources(resources, image):
         container
         for item in result
         if item.get("kind") == "Deployment"
-        and item.get("metadata", {}).get("name") == "operations-api"
+        and item.get("metadata", {}).get("name") == "ops-service"
         for container in item["spec"]["template"]["spec"]["containers"]
-        if container.get("name") == "operations-api"
+        if container.get("name") == "ops-service"
     ]
     require(len(matches) == 1, "Expected exactly one Ops image to replace.")
     require(
-        matches[0]["image"] == "govbiz-ops:local-k8s",
+        matches[0]["image"] == "govbiz-ops-service:local-k8s",
         "Unexpected local image placeholder.",
     )
     matches[0]["image"] = image
@@ -153,7 +153,7 @@ def main():
     db_path = ROOT / "environments/local/ops-mysql"
     db_docs = documents(["kubectl", "kustomize", db_path])
     app_docs = app_image_resources(
-        documents(["kubectl", "kustomize", ROOT / "environments/local/operations-api"]),
+        documents(["kubectl", "kustomize", ROOT / "environments/local/ops-service"]),
         args.image,
     )
     mysql_image = next(
@@ -217,7 +217,7 @@ def main():
                             "get",
                             "pods",
                             "-l",
-                            "app.kubernetes.io/name=operations-api",
+                            "app.kubernetes.io/name=ops-service",
                             "-o",
                             "json",
                         ],
@@ -309,7 +309,7 @@ def main():
             apply(app_docs)
             run(
                 namespaced
-                + ["rollout", "status", "deployment/operations-api", "--timeout=180s"]
+                + ["rollout", "status", "deployment/ops-service", "--timeout=180s"]
             )
             pod = app_pod()
             report["running_image_id"] = pod["status"]["containerStatuses"][0][
@@ -317,8 +317,9 @@ def main():
             ]
             url = forward(pod["metadata"]["name"])
             require(
-                wait_http(url + "/api/v1/health", 200)["status"] == "UP",
-                "Liveness failed.",
+                wait_http(url + "/api/v1/health", 200)
+                == {"status": "UP", "service": "govbiz-ops-service"},
+                "Liveness or service identity failed.",
             )
             require(
                 wait_http(url + "/api/v1/health/ready", 200)["checks"]["database"]
@@ -333,7 +334,7 @@ def main():
                 namespaced
                 + [
                     "exec",
-                    "deployment/operations-api",
+                    "deployment/ops-service",
                     "--",
                     "python",
                     "manage.py",
@@ -344,7 +345,7 @@ def main():
                 namespaced
                 + [
                     "exec",
-                    "deployment/operations-api",
+                    "deployment/ops-service",
                     "--",
                     "python",
                     "manage.py",
@@ -357,7 +358,7 @@ def main():
                 namespaced
                 + [
                     "exec",
-                    "deployment/operations-api",
+                    "deployment/ops-service",
                     "--",
                     "python",
                     "-c",
@@ -437,7 +438,7 @@ def main():
             run(namespaced + ["delete", "pod", pod["metadata"]["name"], "--wait=true"])
             run(
                 namespaced
-                + ["rollout", "status", "deployment/operations-api", "--timeout=180s"]
+                + ["rollout", "status", "deployment/ops-service", "--timeout=180s"]
             )
             replacement = app_pod(excluding=old_uid)
             require(
@@ -455,8 +456,8 @@ def main():
                 + [
                     "set",
                     "image",
-                    "deployment/operations-api",
-                    "operations-api=govbiz-ops:deliberately-missing-smoke",
+                    "deployment/ops-service",
+                    "ops-service=govbiz-ops-service:deliberately-missing-smoke",
                 ]
             )
             failed = subprocess.run(
@@ -466,7 +467,7 @@ def main():
                     + [
                         "rollout",
                         "status",
-                        "deployment/operations-api",
+                        "deployment/ops-service",
                         "--timeout=25s",
                     ]
                 ],
@@ -474,17 +475,17 @@ def main():
             )
             require(failed.returncode != 0, "Missing image unexpectedly rolled out.")
             require(
-                status("deployment", "operations-api")["status"].get(
+                status("deployment", "ops-service")["status"].get(
                     "availableReplicas", 0
                 )
                 >= 1,
                 "Failed rollout removed healthy replica.",
             )
             wait_http(replacement_url + "/api/v1/health/ready", 200)
-            run(namespaced + ["rollout", "undo", "deployment/operations-api"])
+            run(namespaced + ["rollout", "undo", "deployment/ops-service"])
             run(
                 namespaced
-                + ["rollout", "status", "deployment/operations-api", "--timeout=180s"]
+                + ["rollout", "status", "deployment/ops-service", "--timeout=180s"]
             )
             restored = app_pod()
             require(

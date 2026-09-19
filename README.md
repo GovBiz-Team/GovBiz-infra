@@ -18,7 +18,7 @@ Kubernetes를 포트폴리오의 필수 목표로 두고, **`ops-service` + 검�
 
 | 구분 | 현재 상태 |
 | --- | --- |
-| 기존 운영 | Vercel 프론트엔드 + AWS EC2 Docker Compose 기반 백엔드 유지. 이번 작업으로 운영 설정·데이터를 변경하지 않음 |
+| 운영 환경 | 현재 운영 환경 없음. EC2 Compose·CodeBuild·SSM 설정은 앱 저장소의 재배포용 템플릿이며 자동 실행하지 않음 |
 | 로컬 Kubernetes | Gunicorn으로 실행하는 `ops-service`와 MySQL 8.4를 격리된 kind 클러스터에 배포해 실제 실행·장애·복구·이미지 롤백 검증 완료 |
 | 서비스 경계 | `core-service`·`catalog-service`·`ai-service`·`ops-service`를 구분. `catalog-service`는 앱 저장소에서 독립 프로세스·DB와 `core-service` HTTP 연동을 로컬 검증했고, Kubernetes·AWS 운영에는 아직 반영하지 않음 |
 | 아직 미구현 | Argo CD 연결, `core-service`·`catalog-service`·`ai-service`의 Kubernetes 이전, `ops-service` 관리자 인증·LLMOps 업무 기능, AWS Kubernetes 운영 전환 |
@@ -49,26 +49,24 @@ React Native 앱은 `GovBiz/mobile/`에서 웹과 함께 관리하며,
 [공고 분리 범위·전환 조건](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/catalog-service-extraction.md)을 따릅니다.
 `ops-service`의 관리자 권한 판정은 `core-service`에 위임하는 설계이며 아직 구현하지 않았습니다.
 
-### 서비스명과 기존 배포 식별자의 구분
+### 서비스명과 배포 식별자
 
-이 문서의 서비스 표기는 위 소스 폴더명으로 통일합니다. 아래 값은 실제 설정에 남아 있는
-**배포 식별자**이며, 서비스명이 바뀌었다고 함께 변경된 것은 아닙니다.
+소스 폴더명·실행 서비스·컨테이너·내부 DNS를 같은 서비스명으로 통일합니다.
 
-| 현재 서비스명 | 현재 설정에서 유지하는 배포 식별자 |
+| 현재 서비스명 | 배포 설정의 식별자 |
 | --- | --- |
-| `core-service` | Compose 서비스·내부 DNS `core-api`, ECR 저장소 `govbiz/core-api`. Kubernetes manifest는 아직 없음 |
+| `core-service` | Compose 서비스·내부 DNS `core-service`, ECR 저장소 `govbiz/core-service`. Kubernetes manifest는 아직 없음 |
 | `catalog-service` | 선택형 Compose 서비스 `catalog-service`. Kubernetes manifest는 아직 없음 |
 | `ai-service` | Compose 서비스·내부 DNS `ai-service`, ECR 저장소 `govbiz/ai-service`. Kubernetes manifest는 아직 없음 |
-| `ops-service` | 통합 Compose `django-api`, Kubernetes Deployment·Service `operations-api`, 로컬 검증 이미지 `govbiz-ops:<고유 태그>` |
+| `ops-service` | 통합 Compose `ops-service`, Kubernetes Deployment·Service `ops-service`, 로컬 검증 이미지 `govbiz-ops-service:<고유 태그>` |
 
-Kubernetes의 `ops-service` 설정 경로는 여전히 `environments/services/operations-api/base/`와
-`environments/local/operations-api/`입니다. 기존 DB·볼륨 이름도 유지합니다.
-이름을 맞추기 위해 운영 리소스·데이터를 새로 만들거나 배포 설정을 일괄 치환하지 않습니다.
+Kubernetes 설정은 `environments/services/ops-service/base/`와 `environments/local/ops-service/`입니다.
+Ops DB 컨테이너·Service는 `ops-mysql`입니다. DB 스키마 변경·기존 로컬 볼륨 삭제·AWS 리소스 생성은 하지 않습니다.
 
 테이블 소유권, 내부 통신, 인증 위임과 복제 수 확대 조건은 [서비스·데이터 경계](docs/service-boundaries.md)를 따릅니다.
 
 기존 EC2 Compose·CodeBuild·SSM 배포 코드는 당분간 GovBiz의 `infrastructure/`에 유지합니다.
-현재 AWS·Vercel의 source 연결, 서버 설정, DB, 이미지 버전은 이 작업으로 변경하지 않았습니다.
+현재 가동 중인 운영 환경은 없으며, 실제 클라우드 연결·재배포는 별도 검토 후 수행합니다.
 운영 클러스터 종류는 아직 확정하지 않았습니다.
 프론트를 Vercel에 유지하면 해당 프론트 배포는 Argo CD의 관리 대상이 아닙니다.
 
@@ -124,7 +122,7 @@ GovBiz-infra/
 ├─ argocd/
 │  └─ README.md               AppProject·Application 도입 조건
 ├─ environments/
-│  ├─ services/operations-api/base/  ops-service의 Deployment·Service (리소스명 operations-api)
+│  ├─ services/ops-service/base/  ops-service의 Deployment·Service (리소스명 ops-service)
 │  └─ local/                  ops-service overlay·검증용 MySQL·namespace
 ├─ kind/local.yaml            단일 노드 검증 클러스터; 운영/HA 아님
 ├─ docs/

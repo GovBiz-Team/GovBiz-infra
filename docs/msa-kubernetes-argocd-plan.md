@@ -38,8 +38,8 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 ## 2. 서비스 경계와 분리 순서
 
 아래 표는 배포 경계와 단계별 전환 방향이다. `core-service`·`ai-service`·`ops-service` 및 선택형 `catalog-service` 소스는 GovBiz에 존재하며,
-기존 런타임 식별자는 소스 폴더명 변경과 별개로 유지한다.
-[서비스명·배포 식별자 대응 표](../README.md#서비스명과-기존-배포-식별자의-구분)를 따른다.
+실행 서비스·컨테이너·내부 DNS도 소스 폴더명에 맞춰 통일한다.
+[서비스명·배포 식별자 대응 표](../README.md#서비스명과-배포-식별자)를 따른다.
 
 | 서비스 | 담당할 책임 | 진행 방식 |
 | --- | --- | --- |
@@ -80,8 +80,8 @@ GovBiz-infra에는 향후 환경별 배포 상태와 Argo CD 정의만 추가한
 ```text
 GovBiz-infra/
 ├─ environments/
-│  ├─ services/operations-api/base/  현재: ops-service의 기존 리소스명 유지
-│  ├─ local/operations-api/         현재: ops-service 로컬 overlay
+│  ├─ services/ops-service/base/  현재: ops-service Deployment·Service
+│  ├─ local/ops-service/         현재: ops-service 로컬 overlay
 │  ├─ local/ops-mysql/              현재: 격리 검증용 DB
 │  └─ README.md                     환경별 관리 기준
 ├─ argocd/README.md                 현재: 도입 조건만 존재
@@ -96,7 +96,7 @@ Argo CD AppProject·Application은 향후 추가할 대상이다. 아직 해당 
 infra에서는 submodule SHA가 아닌 환경별 이미지 digest를 배포 버전으로 관리한다. 릴리스 PR에 이미지와 GovBiz 소스 커밋의 대응 관계를 남긴다.
 앱 이미지는 서로 독립적으로 갱신하되, 공개 계약 변경 시 소비자 호환성을 검증한다.
 
-현재 EC2 운영 Compose·CodeBuild·SSM 코드는 GovBiz의 `infrastructure/`에 유지한다.
+현재 운영 환경은 없다. EC2 Compose·CodeBuild·SSM 재배포용 코드는 GovBiz의 `infrastructure/`에 유지한다.
 이번 저장소 정리에서는 실제 운영 연결·서버 파일·이미지를 바꾸지 않는다. Kubernetes 전환 검증과 승인 뒤 해당 환경의 배포 기준·권한을 단일 경로로 옮긴다.
 
 현재 프론트엔드 배포를 Kubernetes로 반드시 옮길 필요는 없다. 외부 웹 호스팅을 유지하면서 백엔드만 전환할 수도 있다.
@@ -131,7 +131,7 @@ flowchart LR
 3. **요청·예산 제한:** 프로세스 메모리의 동시 실행 제한·캐시가 여러 Pod에서 어떤 의미를 가지는지 확인한다. 기존 Redis·DB 기반 정책과 함께 검토한다.
 4. **운영 이미지:** Django 기본 이미지는 Gunicorn으로 변경하고 `ops-service` CI에 기본 이미지 검증을 추가했다. 개발 Compose의 runserver·소스 bind mount를 Kubernetes에 가져오지 않는다. TLS·인증·실제 업무 운영 준비는 별도다.
 5. **상태 확인과 자원:** startup/readiness/liveness를 구분하고, 외부 AI 장애로 무한 재시작하지 않도록 설계한다. 요청 시간·종료 유예·메모리·CPU를 실제 부하에 맞춰 정한다.
-6. **상태 저장소:** RDS는 우선 기존 연결을 유지한다. Elasticsearch·Qdrant·RabbitMQ·Redis는 백업·복구·PVC와 운영 주체를 먼저 정한다. 모든 DB를 단순히 Pod 하나씩으로 변환하지 않는다.
+6. **상태 저장소:** RDS 사용 여부와 새 연결을 먼저 확정한다. Elasticsearch·Qdrant·RabbitMQ·Redis는 백업·복구·PVC와 운영 주체를 먼저 정한다. 모든 DB를 단순히 Pod 하나씩으로 변환하지 않는다.
 7. **추적:** 서비스 간 request/job ID, 오류율, 지연, 큐 적체를 관측한다. Kubernetes 로그 수집과 Argo CD의 배포 상태만으로 업무 처리 성공을 판단하지 않는다.
 
 ## 7. 실행 단계와 완료 기준

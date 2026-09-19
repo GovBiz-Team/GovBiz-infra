@@ -80,13 +80,16 @@ GOVBIZ_DJANGO_ENV_FILE=./backend/ops-service/.env
 
 새 통합 Compose의 기본 프로젝트명은 기존 `govbiz-infra`를 유지한다.
 기존에 사용자 지정 이름을 사용했다면 `.env.compose`에 같은 프로젝트명을 지정한다.
-서비스·논리 볼륨 이름도 유지하므로 **프로젝트명과 기존 override 구성이 같을 때** 기존 볼륨을 사용한다.
-이 경우 예전 독립 프로젝트용 `compose.existing-data.yaml`을 무조건 켜지 않는다.
+서비스·컨테이너는 `core-service`·`ops-service`·`ops-mysql`로 통일했고 Ops 논리 볼륨은 `ops-mysql-data`로 변경했다.
+기존 Ops 데이터를 쓸 때는 `compose.existing-data.yaml`을 추가하고 `GOVBIZ_EXISTING_DJANGO_MYSQL_VOLUME=govbiz-infra_django-mysql-data`로 실제 볼륨을 지정한다.
+다른 `GOVBIZ_EXISTING_*_VOLUME`도 각각 실제 기존 이름으로 맞춘다. 기본 override 값은 과거 독립 실행용이므로 그대로 사용하지 않는다.
 
 이미 외부 볼륨 override로 실행했다면 기존 `GOVBIZ_EXISTING_*` 값을 그대로 유지한다.
 프로젝트명만 같다고 외부 볼륨 매핑을 버리면 안 된다.
 
 ### 이전에 govbiz와 govbiz4-django를 각각 실행한 경우
+
+새 Ops 단독 프로젝트명은 `govbiz-ops`다. 이전 볼륨을 지우거나 자동 이전하지 않는다.
 
 GovBiz의 `compose.existing-data.yaml`을 선택하면 기존 독립 프로젝트 볼륨을 재사용한다.
 실제 볼륨명이 기본값과 다르면 `.env.compose`의 `GOVBIZ_EXISTING_*` 값을 먼저 맞춘다.
@@ -97,7 +100,7 @@ COMPOSE_FILE=compose.yaml|compose.existing-data.yaml
 ```
 
 기본 볼륨 이름은 `govbiz_mysql-data`, `govbiz_elasticsearch-data`, `govbiz_qdrant-data`,
-`govbiz_redis-data`, `govbiz_rabbitmq-data`, `govbiz_web-node-modules`, `govbiz4-django_mysql-data`다.
+`govbiz_redis-data`, `govbiz_rabbitmq-data`, `govbiz4-django_mysql-data`다.
 override는 `external: true`이므로 지정된 기존 볼륨이 없으면 실패한다. 빈 볼륨을 만들어 이전 데이터로 간주하지 않는다.
 
 ## 3. 기존 컨테이너를 멈춘 뒤 새 개발 위치로 전환

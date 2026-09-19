@@ -63,7 +63,7 @@ class KubernetesPolicyTests(unittest.TestCase):
             r
             for r in self.resources
             if r["kind"] == "ConfigMap"
-            and r["metadata"]["name"].startswith("operations-api-config-")
+            and r["metadata"]["name"].startswith("ops-service-config-")
         )
         for key, value in (
             ("DJANGO_DEBUG", "true"),
@@ -136,7 +136,7 @@ class KubernetesPolicyTests(unittest.TestCase):
         self.resources.append(deepcopy(self.deployment))
         self.assert_rejected("Duplicate resource")
         self.resources = [r for r in self.resources if r["kind"] != "Deployment"]
-        self.assert_rejected("Missing resource: Deployment/operations-api")
+        self.assert_rejected("Missing resource: Deployment/ops-service")
 
 
 if __name__ == "__main__":

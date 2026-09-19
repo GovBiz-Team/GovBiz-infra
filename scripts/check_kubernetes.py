@@ -12,9 +12,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMESPACE = "govbiz-local"
-APP_OVERLAY = "environments/local/operations-api"
+APP_OVERLAY = "environments/local/ops-service"
 DB_OVERLAY = "environments/local/ops-mysql"
-BASE = "environments/services/operations-api/base"
+BASE = "environments/services/ops-service/base"
 
 
 def render_overlay(path):
@@ -150,7 +150,7 @@ def policy_errors(resources):
         return result
 
     get("Namespace", NAMESPACE)
-    deployment = get("Deployment", "operations-api")
+    deployment = get("Deployment", "ops-service")
     app_spec = deployment.get("spec", {})
     require(app_spec.get("replicas") == 1, "Local Ops starts with one replica")
     require(
@@ -179,11 +179,11 @@ def policy_errors(resources):
     containers = app_pod.get("containers", [])
     app = containers[0] if containers else {}
     require(
-        app.get("name") == "operations-api", "Ops container name must be operations-api"
+        app.get("name") == "ops-service", "Ops container name must be ops-service"
     )
     require(
-        app.get("image") == "govbiz-ops:local-k8s",
-        "Checked-in local image must be govbiz-ops:local-k8s",
+        app.get("image") == "govbiz-ops-service:local-k8s",
+        "Checked-in local image must be govbiz-ops-service:local-k8s",
     )
     require(
         app.get("imagePullPolicy") == "Never",
@@ -244,21 +244,21 @@ def policy_errors(resources):
         if item.get("kind") == "ConfigMap"
         and item.get("metadata", {})
         .get("name", "")
-        .startswith("operations-api-config-")
+        .startswith("ops-service-config-")
     ]
     require(len(app_configs) == 1, "One hashed Ops ConfigMap is required")
     if len(app_configs) == 1:
         config = app_configs[0].get("data", {})
         expected = {
             "DJANGO_DEBUG": "false",
-            "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1,operations-api,operations-api.govbiz-local.svc.cluster.local",
+            "DJANGO_ALLOWED_HOSTS": "localhost,127.0.0.1,ops-service,ops-service.govbiz-local.svc.cluster.local",
             "DB_NAME": "govbiz_ops",
             "DB_USER": "govbiz_ops",
             "DB_HOST": "ops-mysql",
             "DB_PORT": "3306",
         }
         require(config == expected, "Unexpected local Ops environment configuration")
-    for name, port in (("operations-api", 8000), ("ops-mysql", 3306)):
+    for name, port in (("ops-service", 8000), ("ops-mysql", 3306)):
         service = get("Service", name).get("spec", {})
         require(
             service.get("selector") == {"app.kubernetes.io/name": name},
@@ -342,8 +342,8 @@ def main():
     errors = policy_errors(resources)
     base = render_overlay(ROOT / BASE)
     if {(item.get("kind"), item.get("metadata", {}).get("name")) for item in base} != {
-        ("Deployment", "operations-api"),
-        ("Service", "operations-api"),
+        ("Deployment", "ops-service"),
+        ("Service", "ops-service"),
     }:
         errors.append(
             "The reusable Ops base must not contain a database, namespace, or local configuration"

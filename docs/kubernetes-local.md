@@ -50,7 +50,7 @@ GovBiz-infra의 [`develop`](https://github.com/GovBiz-Team/GovBiz-infra/tree/dev
 기존 runserver 이미지로 이 smoke를 실행하면 기본 명령 검사에서 거절된다.
 
 `ops-service` 소스 경로는 `backend/ops-service`이며, 아래 검증이 사용하는 Kubernetes 리소스
-`operations-api`와 이미지 접두사 `govbiz-ops`는 기존 이름을 유지한다.
+`ops-service`와 이미지 접두사 `govbiz-ops-service`도 같은 서비스명으로 통일한다.
 
 Docker Engine(API 1.48 이상)과 kubectl(1.36 계열), Python 3.13,
 공식 체크섬을 확인한 kind 0.33.0이 필요하다.
@@ -60,7 +60,7 @@ Docker에 기존 전체 앱이 실행 중이면 메모리 사용량부터 확인
 
 ```bash
 # GovBiz 저장소에서: 이미지 빌드는 애플리케이션 저장소의 책임이다.
-OPS_IMAGE="govbiz-ops:k8s-$(git rev-parse --short=12 HEAD)-$(date +%s)"
+OPS_IMAGE="govbiz-ops-service:k8s-$(git rev-parse --short=12 HEAD)-$(date +%s)"
 docker build -t "$OPS_IMAGE" backend/ops-service
 
 # GovBiz-infra 저장소로 이동한 뒤
@@ -115,7 +115,7 @@ MySQL은 manifest의 고정 digest로 클러스터가 공식 registry에서 내�
    외부 API 스텁·격리 데이터로 세 서비스를 단계적으로 이식한다.
 4. `ops-service` 관리자 인증은 `core-service`의 세션·ADMIN 판정 계약을 확정한 뒤 별도 구현한다.
 5. EKS 또는 다른 Kubernetes 운영 방식·비용·도메인·TLS·IAM·비밀값·백업을 승인받은 뒤
-   운영 전환한다. 기존 EC2 Compose 배포는 전환 전까지 유지한다.
+   운영 환경을 새로 구성한다. 현재 가동 중인 운영 환경은 없다.
 
 참고: [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/),
 [kind 이미지 적재](https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster),

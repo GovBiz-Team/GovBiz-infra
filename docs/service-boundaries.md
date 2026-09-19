@@ -1,5 +1,7 @@
 # 서비스·데이터 경계와 Kubernetes 전환 기준
 
+> 과거 검토·검증 기록입니다. 현재 운영 환경은 없으며 현재 컨테이너·DNS는 `core-service`·`ops-service`(Ops DB: `ops-mysql`)로 통일했습니다. 아래 당시 커밋 링크·이미지 ID·출력은 증거 보존을 위해 변경하지 않습니다. 현재 실행 절차는 [로컬 Kubernetes 안내](kubernetes-local.md)를 따릅니다.
+
 > 이 문서의 Core API/Core, Catalog, AI Service/AI, Ops는 당시 표기입니다. 현재 서비스명은 각각
 > `core-service`, `catalog-service`, `ai-service`, `ops-service`입니다. 본문의 검증 수치·이미지 태그·
 > 커밋 고정 경로는 당시 기록을 보존하며, 최신 구성은 [메인 README](../README.md)를 따릅니다.

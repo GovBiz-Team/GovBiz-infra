@@ -1,13 +1,13 @@
 # 환경별 배포 상태
 
-상태: **로컬 `ops-service` Kubernetes 설정을 구현한 단계다.** `services/operations-api/base`와
-`local/operations-api`, `local/ops-mysql`은 격리된 kind 검증용이다.
+상태: **로컬 `ops-service` Kubernetes 설정을 구현한 단계다.** `services/ops-service/base`와
+`local/ops-service`, `local/ops-mysql`은 격리된 kind 검증용이다.
 운영 클러스터·ECR 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
 
 애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz에서 관리한다.
 향후 이 디렉터리는 승인된 각 환경의 원하는 실행 상태를 관리한다.
-서비스명은 `ops-service`지만 현재 manifest의 Deployment·Service 이름과 경로는
-`operations-api`를 유지한다. [서비스명·배포 식별자 대응 표](../README.md#서비스명과-기존-배포-식별자의-구분)를 참고한다.
+소스 폴더명과 Deployment·Service·컨테이너·설정 경로 모두 `ops-service`다.
+[서비스명·배포 식별자 대응 표](../README.md#서비스명과-배포-식별자)를 참고한다.
 
 ## 배포 설정에 기록할 것
 
@@ -22,7 +22,7 @@
 
 첫 단계는 격리된 로컬 Kubernetes에서 `ops-service`를 검증하는 것이다.
 Kustomize base/overlay를 사용하며 DB 설정은 로컬 검증에만 둔다.
-local의 `govbiz-ops:local-k8s`는 registry에서 다운로드하는 운영 릴리스가 아니라,
+local의 `govbiz-ops-service:local-k8s`는 registry에서 다운로드하는 운영 릴리스가 아니라,
 smoke가 검증한 로컬 고유 이미지 태그로 교체하고 kind에 적재하는 자리다.
 운영에서는 위 표처럼 승인된 digest를 기록해야 하며 로컬 태그를 그대로 복사하지 않는다.
 개발 환경과 운영 환경을 이름만 다르게 복사하거나 임의의 도메인·계정·클러스터 값을 넣지 않는다.
@@ -38,7 +38,7 @@ smoke가 검증한 로컬 고유 이미지 태그로 교체하고 kind에 적재
 이미지 되돌리기는 DB 데이터 되돌리기가 아니며, 파괴적 migration은 별도 승인·복구 절차가 필요하다.
 같은 환경·서비스를 수동 명령, SSM, Argo CD가 경쟁해서 변경하는 다중 배포 주체를 만들지 않는다.
 
-현재 EC2 운영 Compose·CodeBuild·SSM 설정은 GovBiz의 `infrastructure/`에 그대로 둔다.
+현재 운영 환경은 없으며, EC2 Compose·CodeBuild·SSM 재배포용 설정은 GovBiz의 `infrastructure/`에 그대로 둔다.
 새 Kubernetes 경로의 검증과 운영 전환을 승인하기 전에는 이를 대체하거나 자동 실행하지 않는다.
 
 관련 문서: [로컬 검증](../docs/kubernetes-local.md), [Argo CD 도입 조건](../argocd/README.md), [전환 설계](../docs/msa-kubernetes-argocd-plan.md)
