@@ -1,10 +1,10 @@
 # GovBiz MSA·Kubernetes·Argo CD 전환 설계
 
-이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 웹·모바일·공통 패키지와 Core·Catalog·AI·Ops를 GovBiz에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지한다. 두 저장소의 기본 브랜치는 `develop`이다.
-후속으로 Ops의 Gunicorn 실행 이미지와 로컬 Kubernetes 리소스·검증 도구를 추가했다.
+이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 웹·모바일·공통 패키지와 `core-service`·`catalog-service`·`ai-service`·`ops-service`를 GovBiz에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지한다. 두 저장소의 기본 브랜치는 `develop`이다.
+후속으로 `ops-service`의 Gunicorn 실행 이미지와 로컬 Kubernetes 리소스·검증 도구를 추가했다.
 [최신 실행 범위](kubernetes-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
-Catalog의 독립 프로세스·DB·Core HTTP 연동은 로컬에서 검증했다. Argo CD 연결,
-Core·Catalog·AI의 Kubernetes 이식과 AWS 운영 전환은 아직 구현하지 않았다.
+`catalog-service`의 독립 프로세스·DB·`core-service` HTTP 연동은 로컬에서 검증했다. Argo CD 연결,
+`core-service`·`catalog-service`·`ai-service`의 Kubernetes 이식과 AWS 운영 전환은 아직 구현하지 않았다.
 현재 소스 경로는 `backend/{core-service,catalog-service,ai-service,ops-service}`이며,
 아래 초기 분석의 커밋 고정 링크는 당시 경로를 유지한다.
 사용자 결정: **Kubernetes는 포트폴리오 필수 목표이며, 우선 로컬에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
@@ -16,36 +16,38 @@ Core·Catalog·AI의 Kubernetes 이식과 AWS 운영 전환은 아직 구현하�
 
 | 영역 | 현재 구현 | 전환 시 의미 |
 | --- | --- | --- |
-| 통합 실행 | GovBiz의 로컬 Compose가 Core·AI·Ops 등을 연결; infra submodule 사용 종료 | 애플리케이션 PR은 같은 저장소에서, 향후 환경별 배포 설정 PR은 infra에서 관리 |
-| Spring Core | 계정, 공고, 신청 준비, 중복 검토, 파트너, 리포트, 관리자 기능 | 업무별 직접 호출과 데이터 의존 관계를 풀어야 서비스가 독립된다 |
-| FastAPI | 조건 해석, 검색·색인·근거 답변, 문서 분석, 도우미 | 별도 실행 프로세스를 유지하고 Core와의 릴리스 결합을 해소한 뒤 추가 분리를 판단한다 |
-| Django | 상태 확인 API, 전용 MySQL; 후속 변경에서 이미지 기본 실행을 Gunicorn으로 변경 | 개발 Compose만 runserver 유지; 인증 연동과 운영 관리 업무는 미구현 |
+| 통합 실행 | GovBiz의 로컬 Compose가 `core-service`·`ai-service`·`ops-service` 등을 연결; infra submodule 사용 종료 | 애플리케이션 PR은 같은 저장소에서, 향후 환경별 배포 설정 PR은 infra에서 관리 |
+| `core-service` (Spring Boot) | 계정, 공고, 신청 준비, 중복 검토, 파트너, 리포트, 관리자 기능 | 업무별 직접 호출과 데이터 의존 관계를 풀어야 서비스가 독립된다 |
+| `catalog-service` (Spring Boot, 후속 분리) | 독립 공고 DB·수집·게시·색인, 인증된 HTTP snapshot 제공 | 선택형 로컬 분리 검증 완료; `core-service`의 조회용 복제본과 운영 전환 조건은 별도 관리 |
+| `ai-service` (FastAPI) | 조건 해석, 검색·색인·근거 답변, 문서 분석, 도우미 | 별도 실행 프로세스를 유지하고 `core-service`와의 릴리스 결합을 해소한 뒤 추가 분리를 판단한다 |
+| `ops-service` (Django) | 상태 확인 API, 전용 MySQL; 후속 변경에서 이미지 기본 실행을 Gunicorn으로 변경 | 개발 Compose만 runserver 유지; 인증 연동과 운영 관리 업무는 미구현 |
 | AWS 배포 코드 | CodeBuild 검증·이미지 빌드 → ECR → SSM → EC2 Compose | 이미지 빌드는 CI에, Kubernetes 배포는 Argo CD에 맡긴다 |
-| 운영 DB 설정 | 운영 Compose의 Core는 RDS에 연결 | Kubernetes 도입만을 이유로 DB를 클러스터 안으로 옮기지 않는다 |
+| 운영 DB 설정 | 운영 Compose의 `core-service`는 RDS에 연결 | Kubernetes 도입만을 이유로 DB를 클러스터 안으로 옮기지 않는다 |
 
 확인한 파일과 현재 위치:
 
-- 로컬 통합 Compose와 Django 연결은 GovBiz의 `compose.yaml`, `compose.ops.yaml`로 이동한다. [전환 안내](repository-transition.md)
+- 로컬 통합 Compose와 `ops-service` 연결은 GovBiz의 `compose.yaml`, `compose.ops.yaml`에서 관리한다. [전환 안내](repository-transition.md)
 - [운영 Compose](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)
 - [CodeBuild 설정](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/backend.yml), [릴리스 실행](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/release.py)
 - [Django Dockerfile](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/Dockerfile), [Django 설정](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/config/settings.py)
 
 Kubernetes는 컨테이너의 실행·복구·확장을 관리하고, Argo CD는 Git에 기록된 배포 설정을 클러스터에 반영한다.
 MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤트 계약, 독립 배포를 만드는 작업이다.
-현재 Core를 그대로 여러 Pod로 실행하는 단계는 배포 환경 이전이며 업무 서비스 분리가 완료된 상태는 아니다.
+현재 `core-service`를 그대로 여러 Pod로 실행하는 단계는 배포 환경 이전이며 업무 서비스 분리가 완료된 상태는 아니다.
 
 ## 2. 서비스 경계와 분리 순서
 
-아래 표는 배포 경계와 단계별 전환 방향이다. Core·AI·Ops 및 선택형 Catalog 소스는 GovBiz에 존재하며,
-기존 런타임 식별자 `core-api`·`operations-api`는 소스 폴더명 변경과 별개로 유지한다.
+아래 표는 배포 경계와 단계별 전환 방향이다. `core-service`·`ai-service`·`ops-service` 및 선택형 `catalog-service` 소스는 GovBiz에 존재하며,
+기존 런타임 식별자는 소스 폴더명 변경과 별개로 유지한다.
+[서비스명·배포 식별자 대응 표](../README.md#서비스명과-기존-배포-식별자의-구분)를 따른다.
 
-| 배포 단위 | 담당할 책임 | 진행 방식 |
+| 서비스 | 담당할 책임 | 진행 방식 |
 | --- | --- | --- |
-| core-api | 계정·기업·세션과 아직 분리하지 않은 사용자 업무 | 초기에는 기존 기능 유지; 추출된 기능은 API·이벤트로 연동 |
-| operations-api | Django 기반 LLMOps·관리자 업무와 자체 운영 기록 | GovBiz의 `backend/ops-service/`에서 구현; 실행 프로세스·전용 DB는 분리하고 기존 Core 관리자 API는 필요한 범위에서 재사용 |
-| ai-service | LLM·임베딩·RAG·문서 분석 실행 | 기존 FastAPI 유지; 외부 사용자에게 내부 API를 직접 공개하지 않음 |
-| catalog-service | 공고 수집·정규화·게시·색인과 원본 데이터 | 독립 DB와 Core 읽기 projection을 로컬 검증. Kubernetes·운영 전환은 별도 |
-| application-service | 신청 준비·문서 작업·중복 지원 검토와 작업 상태 | 공고·계정 계약 정리 후 분리 후보 |
+| `core-service` | 계정·기업·세션과 아직 분리하지 않은 사용자 업무 | 초기에는 기존 기능 유지; 추출된 기능은 API·이벤트로 연동 |
+| `ops-service` | Django 기반 LLMOps·관리자 업무와 자체 운영 기록 | GovBiz의 `backend/ops-service/`에서 구현; 실행 프로세스·전용 DB는 분리하고 기존 `core-service` 관리자 API는 필요한 범위에서 재사용 |
+| `ai-service` | LLM·임베딩·RAG·문서 분석 실행 | 기존 FastAPI 유지; 외부 사용자에게 내부 API를 직접 공개하지 않음 |
+| `catalog-service` | 공고 수집·정규화·게시·색인과 원본 데이터 | 독립 DB와 `core-service` 읽기 projection을 로컬 검증. Kubernetes·운영 전환은 별도 |
+| `application-service` (분리 후보·미구현) | 신청 준비·문서 작업·중복 지원 검토와 작업 상태 | 공고·계정 계약 정리 후 분리 후보 |
 | 도메인별 worker | 해당 서비스의 큐 소비·수집·장기 작업 | 처리량과 실행 조건에 맞춰 API와 별도 프로세스로 운영 |
 
 워커 프로세스 분리는 같은 업무 서비스의 실행 역할을 나누는 작업이다. 워커 수를 MSA 서비스 수로 계산하지 않는다.
@@ -63,7 +65,7 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 - 초기에는 하나의 RDS 인스턴스 안에서 스키마·계정을 분리할 수 있다. 물리 DB 인스턴스 분리와 데이터 소유권 분리를 구분한다.
 - 다른 서비스의 정보는 내부 API 또는 필요한 필드만 유지하는 이벤트 기반 조회 모델로 전달한다.
 - 데이터 이전은 소유권 목록, 백필, 검증, 쓰기 주체 전환, 복구 절차를 포함한다. 애플리케이션 배포와 동시에 무계획하게 DB를 분할하지 않는다.
-- 계정·권한의 기준은 현재 Core에 유지한다. Django에 별도의 일반 사용자 인증 체계를 중복 구현하지 않는다.
+- 계정·권한의 기준은 현재 `core-service`에 유지한다. Django에 별도의 일반 사용자 인증 체계를 중복 구현하지 않는다.
 - 현재 `govbiz_session`은 HttpOnly·SameSite=Lax·호스트 한정 쿠키다. 외부 주소를 나눌 때 로그인·로그아웃·CSRF와 Django 권한 검사를 함께 설계한다.
 - 내부 API 호출자의 인증과 사용자 권한 전달을 명시한다. Kubernetes 내부 네트워크에 있다는 사실만으로 관리 API 접근을 허용하지 않는다.
 - RabbitMQ 이벤트에는 식별자·버전과 재처리 규칙을 두고, DB 기록과 발행의 일관성 및 중복 소비 방지를 검증한다.
@@ -72,26 +74,22 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 
 애플리케이션 코드·로컬 Compose·테스트는 GovBiz에 모은다.
 GovBiz-infra에는 향후 환경별 배포 상태와 Argo CD 정의만 추가한다.
-`environments/`에는 이제 Ops base와 local overlay·검증용 DB가 있다. `argocd/`에는 아직 README만 있다.
-아래 구조는 최종 확장 제안이며, 현재 실제 파일 목록과 실행법은 [로컬 검증 안내](kubernetes-local.md)를 따른다.
+`environments/`에는 이제 `ops-service` base와 local overlay·검증용 DB가 있다. `argocd/`에는 아직 README만 있다.
+현재 구성과 향후 추가할 영역을 구분하면 다음과 같다. 현재 실행법은 [로컬 검증 안내](kubernetes-local.md)를 따른다.
 
 ```text
 GovBiz-infra/
 ├─ environments/
-│  ├─ README.md                    현재: 관리 기준만 존재
-│  ├─ services/                    향후
-│  │  ├─ core-api/
-│  │  │  ├─ base/
-│  │  │  └─ overlays/{local,prod}/
-│  │  ├─ ai-service/               같은 방식으로 서비스별 구성
-│  │  └─ operations-api/
-│  └─ platform/                    공통 라우팅·네트워크·관측 설정
-├─ argocd/
-│  ├─ README.md                    현재: 도입 조건만 존재
-│  ├─ projects/                    향후: 저장소·namespace·리소스 권한 범위
-│  └─ applications/{local,prod}/   서비스별 배포 경로 연결
+│  ├─ services/operations-api/base/  현재: ops-service의 기존 리소스명 유지
+│  ├─ local/operations-api/         현재: ops-service 로컬 overlay
+│  ├─ local/ops-mysql/              현재: 격리 검증용 DB
+│  └─ README.md                     환경별 관리 기준
+├─ argocd/README.md                 현재: 도입 조건만 존재
 └─ docs/
 ```
+
+`core-service`·`catalog-service`·`ai-service`의 Kubernetes base/overlay, 운영 환경, 공통 라우팅·네트워크,
+Argo CD AppProject·Application은 향후 추가할 대상이다. 아직 해당 manifest나 디렉터리를 만들지 않았다.
 
 처음에는 Kustomize의 base/overlay로 환경 차이를 관리한다. 서비스별 Argo CD Application으로 독립 배포와 상태 확인이 가능하게 한다.
 운영 Pod에는 개발 체크아웃 소스를 마운트하지 않는다. 애플리케이션 CI가 만든 불변 이미지 digest를 배포 설정에 기록한다.
@@ -128,10 +126,10 @@ flowchart LR
 
 ## 6. Pod 확장 전에 해결할 항목
 
-1. **수집·색인 실행 역할:** 현재 Core의 `@Scheduled`는 각 프로세스에서 실행된다. 세대별 스냅샷 공개 보호가 있어도 외부 수집·색인 호출 자체의 중복 방지를 뜻하지 않는다. 전용 실행 역할과 작업 단위 중복 방지를 확인하기 전에는 replicas만 늘리지 않는다.
+1. **수집·색인 실행 역할:** 기존 모드에서는 `core-service`, 공고 분리 모드에서는 `catalog-service`가 수집·색인을 소유한다. 활성화된 `@Scheduled`는 각 프로세스에서 실행되므로 실행 주체를 먼저 확인한다. 세대별 스냅샷 공개 보호가 있어도 외부 수집·색인 호출 자체의 중복 방지를 뜻하지 않는다. 전용 실행 역할과 작업 단위 중복 방지를 확인하기 전에는 replicas만 늘리지 않는다.
 2. **큐 소비·종료:** DB 작업 선점, 중복 배달, ACK, DLQ, 실행 중 Pod 종료와 재기동을 검증한다. 재시도 때문에 동일 유료 AI 작업을 반복하지 않도록 기존 기록·재실행 정책을 보존한다.
 3. **요청·예산 제한:** 프로세스 메모리의 동시 실행 제한·캐시가 여러 Pod에서 어떤 의미를 가지는지 확인한다. 기존 Redis·DB 기반 정책과 함께 검토한다.
-4. **운영 이미지:** Django 기본 이미지는 Gunicorn으로 변경하고 Ops CI에 기본 이미지 검증을 추가했다. 개발 Compose의 runserver·소스 bind mount를 Kubernetes에 가져오지 않는다. TLS·인증·실제 업무 운영 준비는 별도다.
+4. **운영 이미지:** Django 기본 이미지는 Gunicorn으로 변경하고 `ops-service` CI에 기본 이미지 검증을 추가했다. 개발 Compose의 runserver·소스 bind mount를 Kubernetes에 가져오지 않는다. TLS·인증·실제 업무 운영 준비는 별도다.
 5. **상태 확인과 자원:** startup/readiness/liveness를 구분하고, 외부 AI 장애로 무한 재시작하지 않도록 설계한다. 요청 시간·종료 유예·메모리·CPU를 실제 부하에 맞춰 정한다.
 6. **상태 저장소:** RDS는 우선 기존 연결을 유지한다. Elasticsearch·Qdrant·RabbitMQ·Redis는 백업·복구·PVC와 운영 주체를 먼저 정한다. 모든 DB를 단순히 Pod 하나씩으로 변환하지 않는다.
 7. **추적:** 서비스 간 request/job ID, 오류율, 지연, 큐 적체를 관측한다. Kubernetes 로그 수집과 Argo CD의 배포 상태만으로 업무 처리 성공을 판단하지 않는다.
@@ -141,10 +139,10 @@ flowchart LR
 | 단계 | 작업 | 완료 기준 |
 | --- | --- | --- |
 | 1 | 서비스 책임·테이블 소유권·인증 계약 정의 | 분리 대상마다 읽기·쓰기 경계와 호환 API가 문서화됨 |
-| 2 | 기존 Core·AI와 Django의 운영 실행 준비 | 이미지 빌드·필수 테스트, 상태 확인·종료 동작 검증 |
+| 2 | `core-service`·`catalog-service`·`ai-service`·`ops-service`의 운영 실행 준비 | 이미지 빌드·필수 테스트, 상태 확인·종료 동작 검증 |
 | 3 | 개발 Kubernetes에 기존 배포 단위 이식 | 격리 데이터로 서비스 통신·장애·재시작 검증; 아직 MSA 완료로 표시하지 않음 |
 | 4 | Argo CD 연결 | infra PR의 이미지 변경이 지정 서비스에만 반영되고 이전 버전 복귀 검증 |
-| 5 | Django 운영 업무 구현, 공고 서비스 등 순차 추출 | 다른 서비스 DB 직접 접근 없이 해당 서비스만 배포·테스트 가능 |
+| 5 | `ops-service` 운영 업무 구현, `catalog-service`의 운영 전환과 후속 업무 추출 | 다른 서비스 DB 직접 접근 없이 해당 서비스만 배포·테스트 가능 |
 | 6 | 운영 전환 | 데이터 복구 연습·권한·동시성 검증 후 트래픽 전환, 기존 자동 배포 경로 정리 |
 
 유료 AI 평가는 승인된 전송 데이터와 호출 예산 안에서만 수행한다. 무료 스텁 통합 검증과 실제 RAG 품질 검증은 결과를 구분한다.
@@ -156,12 +154,12 @@ flowchart LR
 로컬 Kubernetes는 Docker 위에 별도 클러스터를 만드는 kind를 우선 제안한다.
 기존 Compose 개발 환경의 코드·볼륨을 유지하며, Kubernetes 검증에는 별도 namespace와 검증 데이터를 사용한다.
 
-1. `govbiz-local` 이름의 kind 클러스터와 전용 kubeconfig를 준비한다. 기존 Kubernetes 컨텍스트를 암묵적으로 사용하지 않는다.
-2. 첫 검증은 Django와 전용 검증 MySQL로 배포·DNS·상태 확인·Pod 재생성을 확인한다.
+1. 현재 smoke는 `govbiz-k8s-smoke-<무작위값>` 이름의 새 kind 클러스터와 전용 kubeconfig를 사용한다. `govbiz-local`은 namespace 이름이며 기존 Kubernetes 컨텍스트는 사용하지 않는다.
+2. 첫 검증은 `ops-service`와 전용 검증 MySQL로 배포·DNS·상태 확인·Pod 재생성을 확인한다.
 3. 같은 이미지로 수행한 로컬 배포 검증 이후 Argo CD의 AppProject와 서비스 Application을 연결한다.
 4. Argo CD에서 읽을 manifests가 원격 infra 브랜치에 있어야 한다. 로컬 파일 적용만으로 GitOps 자동 동기화 검증 완료라고 표시하지 않는다.
 5. Git의 이미지 버전 변경 → Argo CD 동기화 → 배포 상태 확인 → 이전 버전 복귀를 검증한다.
-6. 이어서 Core·AI와 검색 저장소를 격리 데이터·외부 API 스텁으로 검증한다. 전체 서비스 동시 실행 전에 자원을 다시 확인한다.
+6. 이어서 `core-service`·`catalog-service`·`ai-service`와 검색 저장소를 격리 데이터·외부 API 스텁으로 검증한다. 전체 서비스 동시 실행 전에 자원을 다시 확인한다.
 
 초기 설계 조사 당시 PC에서 Docker와 kubectl 명령을 확인했다. kind·helm·argocd 명령은 당시 PATH에서 발견되지 않았다. 실행 전 현재 상태를 다시 확인한다.
 Docker 엔진에 할당된 메모리는 약 7.6 GiB이며, 이는 여유 메모리 측정값이 아니다.
@@ -175,7 +173,7 @@ Docker 엔진에 할당된 메모리는 약 7.6 GiB이며, 이는 여유 메모�
 - 도메인·TLS·라우팅 방식, 외부 웹 호스팅 유지 여부
 - 기존 ECR·RDS와 클러스터의 네트워크·IAM 연결
 - 상태 저장소의 운영 위치·스토리지·백업, 비밀값 주입 방식
-- 최초 업무 분리 범위와 Django 운영 관리 기능의 구체적인 요구
+- 후속 업무 분리 범위와 `ops-service` 운영 관리 기능의 구체적인 요구
 
 ## 참고
 

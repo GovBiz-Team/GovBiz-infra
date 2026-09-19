@@ -10,7 +10,9 @@
 - 로컬 검증 후 운영 연결로 전환하는 부트스트랩·권한·복구 절차
 
 실제 서비스 Deployment·Service 등의 원하는 실행 상태는 `../environments/`에서 관리한다.
-파일명과 하위 디렉터리는 첫 로컬 배포 범위를 확정한 뒤 만든다. 빈 설정을 유효한 manifest로 꾸미지 않는다.
+현재 로컬 검증 대상은 `ops-service`이며, 기존 Kubernetes 리소스명은 `operations-api`다.
+첫 Application의 대상 경로는 현재 존재하는 overlay와 대조해 확정하며, Argo CD 설정 파일은
+권한·동기화 범위를 확정한 뒤 만든다. 빈 설정을 유효한 manifest로 꾸미지 않는다.
 
 ## 연결 전 통과 조건
 

@@ -1,5 +1,9 @@
 # 로컬 Kubernetes 검증 기록 — 2026-09-19
 
+> 이 문서의 Core API/Core, Catalog, AI Service/AI, Ops는 당시 표기입니다. 현재 서비스명은 각각
+> `core-service`, `catalog-service`, `ai-service`, `ops-service`입니다. 본문의 검증 수치·이미지 태그·
+> 커밋 고정 경로는 당시 기록을 보존하며, 최신 구성은 [메인 README](../README.md)를 따릅니다.
+
 ## 판정과 범위
 
 **Ops + 전용 검증 MySQL의 로컬 Kubernetes 실행·장애·복구 검증을 통과했다.**

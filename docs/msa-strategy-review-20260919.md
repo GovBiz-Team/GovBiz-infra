@@ -1,5 +1,9 @@
 # GovBiz MSA 전환 전략 — GitHub 사례·현재 코드 기반 검토
 
+> 이 문서의 Core API/Core, Catalog, AI Service/AI, Ops는 당시 표기입니다. 현재 서비스명은 각각
+> `core-service`, `catalog-service`, `ai-service`, `ops-service`입니다. 본문의 검증 수치·이미지 태그·
+> 커밋 고정 경로는 당시 기록을 보존하며, 최신 구성은 [메인 README](../README.md)를 따릅니다.
+
 작성일: 2026-09-19
 
 이 문서는 초기 전략 검토 기록이다. 현재 이름은 `GovBiz`이며 웹·모바일·공통 패키지와

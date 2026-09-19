@@ -1,5 +1,9 @@
 # 서비스·데이터 경계와 Kubernetes 전환 기준
 
+> 이 문서의 Core API/Core, Catalog, AI Service/AI, Ops는 당시 표기입니다. 현재 서비스명은 각각
+> `core-service`, `catalog-service`, `ai-service`, `ops-service`입니다. 본문의 검증 수치·이미지 태그·
+> 커밋 고정 경로는 당시 기록을 보존하며, 최신 구성은 [메인 README](../README.md)를 따릅니다.
+
 현재 저장소는 `GovBiz/develop`이며 소스 폴더는 `backend/{core-service,catalog-service,ai-service,ops-service}`다.
 아래 본문과 커밋 고정 링크는 초기 경계 검토 기록이다. 이후 Catalog의 로컬 분리·DB·Core HTTP 연동 검증을
 완료했으므로 현재 구현 범위는 [Catalog 분리 안내](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/catalog-service-extraction.md)를 우선한다.

@@ -8,14 +8,14 @@
 
 ## 결정과 적용 범위
 
-- React·Core API·AI Service와 Django Ops 소스는 **GovBiz**에서 함께 개발한다.
-- 기존 Ops 코드는 `backend/ops-service/`로 가져온다. Django 실행 프로세스·전용 DB는 별도로 유지한다.
+- 현재 웹·모바일·공통 패키지와 `core-service`·`catalog-service`·`ai-service`·`ops-service` 소스는 **GovBiz**에서 함께 개발한다.
+- 기존 `ops-service` 코드는 `backend/ops-service/`로 가져온다. Django 실행 프로세스·전용 DB는 별도로 유지한다.
 - 로컬 통합 Compose와 검증 스크립트도 GovBiz로 이동한다.
 - GovBiz-infra에서는 애플리케이션 submodule을 제거하고 향후 환경별 배포 설정·Argo CD 정의를 관리한다.
-- Kubernetes 클러스터, 실제 manifests, Argo CD 자동 배포, 새 운영 환경은 이번 변경에 포함하지 않는다.
+- 이 문서의 최초 저장소 이전 작업에는 Kubernetes 리소스·Argo CD·새 운영 환경을 포함하지 않았다. 이후 추가한 로컬 Kubernetes 설정·검증은 [별도 실행 안내](kubernetes-local.md)를 따른다.
 - 현재 EC2 Compose·CodeBuild·SSM과 Vercel 배포 연결은 변경하지 않는다.
 
-기존 GovBiz-ops 원격 저장소는 삭제하거나 archive하지 않는다. Ops는 다음 기준 커밋의 **코드 스냅샷**을
+기존 GovBiz-ops 원격 저장소는 삭제하거나 archive하지 않는다. `ops-service`는 다음 기준 커밋의 **코드 스냅샷**을
 가져오며 원격 저장소의 Git 이력 전체를 GovBiz에 병합하지 않는다.
 
 | 출처 | 기준 커밋 |

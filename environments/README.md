@@ -1,11 +1,13 @@
 # 환경별 배포 상태
 
-상태: **로컬 Ops Kubernetes 설정을 구현한 단계다.** `services/operations-api/base`와
+상태: **로컬 `ops-service` Kubernetes 설정을 구현한 단계다.** `services/operations-api/base`와
 `local/operations-api`, `local/ops-mysql`은 격리된 kind 검증용이다.
 운영 클러스터·ECR 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
 
 애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz에서 관리한다.
 향후 이 디렉터리는 승인된 각 환경의 원하는 실행 상태를 관리한다.
+서비스명은 `ops-service`지만 현재 manifest의 Deployment·Service 이름과 경로는
+`operations-api`를 유지한다. [서비스명·배포 식별자 대응 표](../README.md#서비스명과-기존-배포-식별자의-구분)를 참고한다.
 
 ## 배포 설정에 기록할 것
 
@@ -18,7 +20,7 @@
 | 비밀·데이터 | 비밀 저장소 참조, 소유 DB·스토리지·백업 정책; 실제 비밀값은 제외 |
 | 복구 조건 | 이전 승인 digest, API·DB migration 호환성, 데이터 복구 제한 |
 
-첫 단계는 격리된 로컬 Kubernetes에서 Ops를 검증하는 것이다.
+첫 단계는 격리된 로컬 Kubernetes에서 `ops-service`를 검증하는 것이다.
 Kustomize base/overlay를 사용하며 DB 설정은 로컬 검증에만 둔다.
 local의 `govbiz-ops:local-k8s`는 registry에서 다운로드하는 운영 릴리스가 아니라,
 smoke가 검증한 로컬 고유 이미지 태그로 교체하고 kind에 적재하는 자리다.
