@@ -2,16 +2,16 @@
 
 GovBiz 서비스를 함께 실행하기 위한 **별도 인프라 저장소**입니다.
 애플리케이션 코드는 두 Git submodule에 있으며, 브랜치·PR·리뷰·CI는 각 서비스 저장소에서 독립적으로 관리합니다.
-서비스의 `origin`은 `ilil1/SKN34-3rd-1Team`, `ilil1/SKN34-4th-1Team` 포크를 가리키며, 작업 브랜치도 해당 포크에 푸시합니다.
+기존 서비스의 `origin`은 `ilil1/SKN34-3rd-1Team` 포크를, 운영 관리 서비스의 `origin`은 팀 소유 저장소 `GovBiz-Team/GovBiz-ops`를 가리킵니다. 작업 브랜치와 PR은 각 서비스 저장소에서 관리합니다.
 
 | 저장소 | 책임 |
 | --- | --- |
 | [SKN34-3rd-1Team](https://github.com/ilil1/SKN34-3rd-1Team) | React, Spring Boot, FastAPI AI 서비스와 기존 데이터 서비스 |
-| [SKN34-4th-1Team](https://github.com/ilil1/SKN34-4th-1Team) | Django 서비스와 전용 MySQL |
+| [GovBiz-ops](https://github.com/GovBiz-Team/GovBiz-ops) | LLMOps·관리자 시스템 개발용 저장소; 현재 Django 기본 골격과 전용 MySQL |
 | [GovBiz-infra](https://github.com/GovBiz-Team/GovBiz-infra) | 통합 Compose, 네트워크, 데이터 볼륨 연결, 사용할 서비스 커밋 |
 
 현재 구성은 **로컬 개발용**입니다. 기존 AWS 배포 설정을 이전하거나 새 운영 배포를 수행하지 않습니다.
-Django는 상태 확인 API까지 구현되어 있으며 기존 서비스의 업무·인증 API 연결은 별도 작업입니다.
+GovBiz-ops는 Django 상태 확인 API까지 구현되어 있습니다. LLMOps·관리자 업무 기능과 기존 서비스의 업무·인증 API 연결은 앞으로 개발할 범위입니다.
 
 ## MSA·Kubernetes·Argo CD 전환 계획
 
@@ -27,7 +27,7 @@ compose.existing-data.yaml   기존 로컬 데이터 볼륨을 재사용하는 �
 .env.example                 통합 환경 설정 예시
 services/
   SKN34-3rd-1Team/            3차 저장소 submodule
-  SKN34-4th-1Team/            4차 저장소 submodule
+  GovBiz-ops/                LLMOps·관리자 시스템 저장소 submodule
 scripts/check-compose.py     비밀값·외부 API 없이 구성 검증 및 Django 통합 테스트
 .github/workflows/ci.yml      구성 검증·격리된 Django/MySQL 테스트
 ```
@@ -37,11 +37,15 @@ Django는 원본 Compose의 `web`, `db`를 `extends`로 재사용하되,
 통합 환경에서는 `django-api`, `django-mysql`로 이름을 바꿉니다.
 Django 의존 대상·DB 주소·데이터 볼륨도 함께 변경하므로 React의 `web`이나 기존 MySQL과 충돌하지 않습니다.
 
+운영 관리 저장소는 팀 소유의 `GovBiz-Team/GovBiz-ops`로 연결하며, 로컬 경로도 `services/GovBiz-ops`를 사용합니다.
+Django 코드와 고정 커밋은 유지하고 저장소 주소와 서브모듈 경로만 변경했습니다. DB·볼륨 이름은 변경하지 않습니다.
+기존 실행 설정과의 호환성을 위해 Compose 서비스 이름(`django-api`, `django-mysql`)과 환경변수 이름(`GOVBIZ_DJANGO_ENV_FILE`)도 유지합니다.
+
 ## 준비
 
 - Git과 Docker Desktop의 Linux 컨테이너 엔진
 - Docker Compose 2.24.4 이상 (`include`, `!override` 사용)
-- 이 비공개 저장소와 각 submodule에 대한 읽기 권한
+- 이 저장소와 각 submodule에 대한 읽기 권한. 작업 브랜치를 푸시하려면 해당 저장소의 쓰기 권한도 필요합니다.
 - 검증 스크립트를 직접 실행할 때는 Python 3.11 이상
 
 ```bash
@@ -53,6 +57,10 @@ cd GovBiz-infra
 일반 실행에서는 `git submodule update --remote`를 사용하지 않습니다.
 인프라 커밋에 기록된 서비스 버전을 사용해야 팀원들이 같은 구성을 재현할 수 있습니다.
 
+이전 `services/SKN34-4th-1Team` 경로에서 작업했다면 변경사항을 먼저 커밋하거나 보관하고, 실제 `.env`도 별도로 보관합니다.
+새 서브모듈 초기화 후 기존 `.env`를 `services/GovBiz-ops/.env`로 복사합니다. 기존 비밀값을 예시 값으로 덮어쓰지 않습니다.
+루트 `.env`에 이전 `GOVBIZ_DJANGO_ENV_FILE` 경로를 지정했다면 `./services/GovBiz-ops/.env`로 갱신합니다.
+
 ## 처음 실행하는 PC
 
 PowerShell:
@@ -60,7 +68,7 @@ PowerShell:
 ```powershell
 Copy-Item .env.example .env
 Copy-Item services/SKN34-3rd-1Team/.env.example services/SKN34-3rd-1Team/.env
-Copy-Item services/SKN34-4th-1Team/.env.example services/SKN34-4th-1Team/.env
+Copy-Item services/GovBiz-ops/.env.example services/GovBiz-ops/.env
 ```
 
 Linux/macOS에서는 `Copy-Item` 대신 `cp`를 사용합니다.
@@ -87,7 +95,7 @@ docker compose ps
 | --- | --- |
 | 루트 `.env` | `COMPOSE_*`, `GOVBIZ_*` 통합 설정 |
 | `services/SKN34-3rd-1Team/.env` | OpenAI·공고 API 키, 기존 DB와 서비스 설정 |
-| `services/SKN34-4th-1Team/.env` | Django 키, 전용 MySQL 비밀번호와 포트 |
+| `services/GovBiz-ops/.env` | Django 키, 전용 MySQL 비밀번호와 포트 |
 
 모든 실제 `.env`는 Git에서 제외합니다.
 루트 `.env`나 셸에 `MYSQL_ROOT_PASSWORD`, `DB_PASSWORD` 같은 서비스 비밀값을 공통으로 넣지 않습니다.
@@ -187,21 +195,23 @@ Django 테스트는 별도 `test_govbiz4` DB를 생성·삭제합니다.
 submodule은 기본적으로 특정 커밋을 checkout한 상태이므로, 수정 전에 작업 브랜치를 만듭니다.
 
 ```bash
-git -C services/SKN34-4th-1Team switch -c feature/my-django-change
+git -C services/GovBiz-ops switch -c feature/my-ops-change
 # 코드 수정·검증·커밋 후 해당 저장소에 push하고 PR 생성
-git -C services/SKN34-4th-1Team push -u origin feature/my-django-change
+git -C services/GovBiz-ops push -u origin feature/my-ops-change
 ```
+
+LLMOps·관리자 시스템 작업의 PR 대상은 `GovBiz-Team/GovBiz-ops`이며, 기존 개인 포크에는 푸시하지 않습니다.
 
 서비스 PR이 병합되면 인프라 저장소의 별도 브랜치에서 사용할 커밋을 명시적으로 갱신합니다.
 
 ```bash
-git switch -c chore/update-django-version
-git -C services/SKN34-4th-1Team fetch origin
-git -C services/SKN34-4th-1Team checkout --detach <사용할-커밋-SHA>
+git switch -c chore/update-ops-version
+git -C services/GovBiz-ops fetch origin
+git -C services/GovBiz-ops checkout --detach <사용할-커밋-SHA>
 python scripts/check-compose.py --smoke
-git add services/SKN34-4th-1Team
-git commit -m "통합 환경의 Django 서비스 버전 갱신"
-git push -u origin chore/update-django-version
+git add services/GovBiz-ops
+git commit -m "통합 환경의 운영 관리 서비스 버전 갱신"
+git push -u origin chore/update-ops-version
 ```
 
 이 PR은 `GovBiz-infra`에 올립니다.

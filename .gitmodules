@@ -1,6 +1,6 @@
 [submodule "services/SKN34-3rd-1Team"]
 	path = services/SKN34-3rd-1Team
 	url = https://github.com/ilil1/SKN34-3rd-1Team.git
-[submodule "services/SKN34-4th-1Team"]
-	path = services/SKN34-4th-1Team
-	url = https://github.com/ilil1/SKN34-4th-1Team.git
+[submodule "services/GovBiz-ops"]
+	path = services/GovBiz-ops
+	url = https://github.com/GovBiz-Team/GovBiz-ops.git
