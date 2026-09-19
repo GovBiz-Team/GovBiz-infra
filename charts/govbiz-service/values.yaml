@@ -2,6 +2,8 @@
 serviceName: ""
 localMode: false
 image: {repository: "", digest: "", tag: "", pullPolicy: IfNotPresent}
+# References only; create pull credentials outside Git/Helm in the same namespace.
+imagePullSecrets: []
 port: 8080
 replicas: 1
 env: {}

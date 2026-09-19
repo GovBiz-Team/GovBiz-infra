@@ -3,7 +3,7 @@
 상태: **`local-msa/`에 Core·Catalog·AI·Ops의 독립 Helm values를 구현했다.**
 템플릿은 `../charts/`에 있으며, `../argocd/local/`의 Application이 각 values를 참조한다.
 기존 `services/ops-service/base`·`local/ops-service`·`local/ops-mysql`은 Ops 단독 Kustomize 검증용으로 유지한다.
-운영 클러스터·ECR 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
+운영 클러스터·배포에 선택된 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
 
 애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz에서 관리한다.
 향후 이 디렉터리는 승인된 각 환경의 원하는 실행 상태를 관리한다.
@@ -14,7 +14,7 @@
 
 | 항목 | 기준 |
 | --- | --- |
-| 이미지 | 서비스별 ECR 저장소와 불변 digest; 변경되지 않은 서비스 버전은 유지 |
+| 이미지 | 서비스별 GHCR 저장소와 고정 digest; 변경되지 않은 서비스 버전은 유지 |
 | 추적 정보 | 서비스 소스 SHA·이미지 digest·설정 revision의 대응 관계 |
 | 실행 설정 | replica, CPU·메모리, startup/readiness/liveness, 종료 유예 |
 | 네트워크 | 내부 Service, 외부 라우팅·TLS, 접근 정책 |

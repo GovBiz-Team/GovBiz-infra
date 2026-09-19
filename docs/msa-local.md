@@ -66,7 +66,7 @@ replicas=1 및 Recreate는 중복 writer를 피하기 위한 초기 제한이며
 
 Application은 `GovBiz-infra/develop`의 해당 서비스 값만 읽는다. Secret은 별도 주입하며
 클러스터 생성·데이터 저장소 초기화를 Argo 앱 sync에 숨기지 않는다.
-ECR pull 권한과 Git 저장소 읽기 권한은 별개다. `localMode=false`인 서비스는 이미지 digest가 필수다.
+GHCR 이미지 공개 범위·pull 권한과 Git 저장소 읽기 권한은 별개다. `localMode=false`인 서비스는 이미지 digest가 필수다.
 로컬 `local-k8s` 태그와 `imagePullPolicy: Never`는 검증 클러스터에 이미지를 미리 넣는 용도이며,
 클라우드 운영 또는 CI에서 자동 이미지 발행이 완료된 구성이 아니다.
 

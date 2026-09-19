@@ -44,6 +44,12 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range . }}
+        - name: {{ required "imagePullSecrets entry requires a name" .name | quote }}
+        {{- end }}
+      {{- end }}
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true

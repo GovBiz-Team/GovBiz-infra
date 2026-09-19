@@ -5,7 +5,8 @@
 [최신 실행 범위](msa-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
 후속 변경으로 네 서비스 Helm values와 로컬 Argo CD AppProject·Application·검증 도구를 구현했다.
 아래는 초기 전환 계획이며, 실제 실행 완료 범위는 메인 README의 검증 기록을 기준으로 한다.
-AWS 운영 전환과 이미지 발행 CI 연결은 아직 구현하지 않았다.
+후속으로 GHCR 서비스별 이미지 발행 CI와 digest 선택 도구를 구현했다. 사용자 선택은 공개 GHCR 패키지이며,
+AWS 운영 전환·이미지 digest 자동 승격·상시 클러스터 연결은 아직 구현하지 않았다.
 현재 소스 경로는 `backend/{core-service,catalog-service,ai-service,ops-service}`이며,
 아래 초기 분석의 커밋 고정 링크는 당시 경로를 유지한다.
 사용자 결정: **Kubernetes는 포트폴리오 필수 목표이며, 우선 로컬에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
@@ -90,7 +91,7 @@ GovBiz-infra/
 ```
 
 네 서비스의 Helm Chart·로컬 AppProject·Application은 후속 구현에 포함되었다.
-운영 환경, 공통 외부 라우팅·네트워크 정책, 이미지 발행 CI는 향후 추가할 대상이다.
+운영 환경, 공통 외부 라우팅·네트워크 정책, digest 자동 승격은 향후 추가할 대상이다.
 
 처음에는 Kustomize의 base/overlay로 환경 차이를 관리한다. 서비스별 Argo CD Application으로 독립 배포와 상태 확인이 가능하게 한다.
 운영 Pod에는 개발 체크아웃 소스를 마운트하지 않는다. 애플리케이션 CI가 만든 불변 이미지 digest를 배포 설정에 기록한다.
@@ -109,7 +110,7 @@ React Native 앱은 GovBiz의 `frontend/mobile/`, 웹·앱 공통 계약은 `fro
 ```mermaid
 flowchart LR
     A["GovBiz PR·병합"] --> B["CI: 서비스별 테스트·이미지 빌드"]
-    B --> C["ECR: 불변 이미지"]
+    B --> C["GHCR: 서비스별 이미지 digest"]
     C --> D["GovBiz-infra PR: 이미지 digest 갱신"]
     D --> E["환경별 배포 설정에 병합"]
     E --> F["Argo CD: Git 상태 동기화"]
@@ -120,7 +121,7 @@ flowchart LR
 - Argo CD는 소스 코드 테스트나 Docker 이미지 빌드를 대신하지 않는다.
 - 개발 환경은 검증 후 자동 동기화, 운영은 초기에는 PR 검토와 수동 동기화를 기본 제안으로 둔다.
 - 클러스터와 Argo CD 자체의 최초 설치·접근 설정은 별도 부트스트랩 단계다.
-- 저장소 공개 범위에 따른 Git 읽기 자격 증명과 ECR 이미지 읽기 권한은 별도로 구성한다.
+- Git 읽기 자격 증명과 GHCR 공개 범위·이미지 읽기 권한은 별도로 구성한다.
 - 비밀값은 평문 또는 단순 base64 Secret으로 Git에 커밋하지 않는다. 운영 환경 확정 후 비밀 저장소와 주입 방식을 선택한다.
 - 이전 이미지로 되돌릴 때도 Git의 배포 설정을 변경한다. DB migration 호환성과 데이터 복구는 이미지 되돌리기와 별도로 확인한다.
 - SSM 기반 기존 Compose 배포는 전환 검증과 트래픽 전환 후 해당 대상으로 가는 자동 실행을 정리한다.
@@ -172,7 +173,7 @@ Docker 엔진에 할당된 메모리는 약 7.6 GiB이며, 이는 여유 메모�
 
 - 실제 운영 대상: EKS 또는 EC2 직접 운영 등
 - 도메인·TLS·라우팅 방식, 외부 웹 호스팅 유지 여부
-- 기존 ECR·RDS와 클러스터의 네트워크·IAM 연결
+- GHCR 이미지 pull, 외부 DB와 클러스터의 네트워크·권한 연결
 - 상태 저장소의 운영 위치·스토리지·백업, 비밀값 주입 방식
 - 후속 업무 분리 범위와 `ops-service` 운영 관리 기능의 구체적인 요구
 

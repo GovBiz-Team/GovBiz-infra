@@ -33,6 +33,14 @@ class MsaChartTests(unittest.TestCase):
         resources = render("core-service", HELM, ["--set", "localMode=false", "--set", "image.digest=sha256:" + "a" * 64])
         self.assertEqual(policy_errors("core-service", resources), [])
 
+    def test_private_registry_uses_secret_reference_only(self):
+        resources = render("ai-service", HELM, ["--set", "imagePullSecrets[0].name=ghcr-pull"])
+        deployment = next(r for r in resources if r["kind"] == "Deployment")
+        self.assertEqual(deployment["spec"]["template"]["spec"]["imagePullSecrets"], [{"name": "ghcr-pull"}])
+        self.assertFalse(any(r["kind"] == "Secret" for r in resources))
+        with self.assertRaises(subprocess.CalledProcessError):
+            render("ai-service", HELM, ["--set-json", 'imagePullSecrets=[{"name":""}]'])
+
     def test_only_selected_service_changes(self):
         baseline = {s: render(s, HELM) for s in SERVICES}
         changed = copy.deepcopy(baseline)
