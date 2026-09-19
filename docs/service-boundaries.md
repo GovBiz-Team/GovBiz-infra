@@ -1,5 +1,10 @@
 # 서비스·데이터 경계와 Kubernetes 전환 기준
 
+현재 저장소는 `GovBiz/develop`이며 소스 폴더는 `backend/{core-service,catalog-service,ai-service,ops-service}`다.
+아래 본문과 커밋 고정 링크는 초기 경계 검토 기록이다. 이후 Catalog의 로컬 분리·DB·Core HTTP 연동 검증을
+완료했으므로 현재 구현 범위는 [Catalog 분리 안내](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/catalog-service-extraction.md)를 우선한다.
+과거 커밋의 `backend/core-api`·`backend/ops` 링크는 당시 경로를 보존한다. Kubernetes 운영 전환은 아직 별도 단계다.
+
 이 문서는 **현재 구현을 확인한 뒤 정한 후속 개발 계약**이다. 인증 위임 API, 서비스 추출,
 DB 분리, 운영 Kubernetes 전환을 구현했다는 뜻이 아니다.
 사용자 요구에 따라 Kubernetes는 포트폴리오의 필수 목표로 두되, 컨테이너를 Pod로 옮긴
@@ -39,7 +44,7 @@ Ops와 AI는 서로 다른 역할이며, 운영 UI를 만든다는 이유로 AI 
 | 중복 검토 | `combination_review`, `combination_review_program`, `combination_review_run`, `combination_review_run_source` |
 | 리포트 | `daily_report_subscription`, `daily_report`, `daily_report_generation_budget`, `daily_report_generation_job` |
 
-근거: [Flyway migration 디렉터리](https://github.com/GovBiz-Team/GovBiz-web/tree/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration).
+근거: [Flyway migration 디렉터리](https://github.com/GovBiz-Team/GovBiz/tree/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration).
 Redis의 검색 결과·소유권·TTL도 현재 Core가 관리하며, 대화 원본은 MySQL에 있다.
 Elasticsearch 키워드 색인은 Core가 공고 원장에서 구성하는 조회용 데이터다.
 이들은 원장을 대체하지 않는다.
@@ -58,11 +63,11 @@ Elasticsearch 키워드 색인은 Core가 공고 원장에서 구성하는 조�
   않는다. 필요한 사용자 표시는 식별자와 허용된 조회 계약으로 얻는다. 물리 RDS를 공유하더라도
   DB 계정·스키마·쓰기 권한은 분리한다.
 
-근거: [AI 조립 코드](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/bootstrap.py),
-[AI 색인 서비스](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/support_program_index/service.py),
-[Core 색인 흐름](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt),
-[검색 결과 저장소](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/repository/SupportProgramSearchResultRepository.kt),
-[Ops 설정](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ops/config/settings.py).
+근거: [AI 조립 코드](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/bootstrap.py),
+[AI 색인 서비스](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/support_program_index/service.py),
+[Core 색인 흐름](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt),
+[검색 결과 저장소](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/repository/SupportProgramSearchResultRepository.kt),
+[Ops 설정](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ops/config/settings.py).
 
 ## 3. 관리자 인증 계약
 
@@ -77,9 +82,9 @@ Ops에는 인증 구현이 없다. 기본 업무 API 권한은 `IsAuthenticated`
 현재 공개된 health/readiness만 명시적으로 익명 접근을 허용한다. 이를 관리자 인증 연동 완료로
 설명하거나 임의의 사용자 ID·역할 헤더를 신뢰해서는 안 된다.
 
-근거: [Core 세션 검증](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt),
-[관리자 판정](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/admin/web/AdminPrincipal.kt),
-[회원 관리 transaction](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/admin/service/AdminAccountService.kt).
+근거: [Core 세션 검증](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt),
+[관리자 판정](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/admin/web/AdminPrincipal.kt),
+[회원 관리 transaction](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/admin/service/AdminAccountService.kt).
 
 ### 후속 구현 정책 — 아직 API 없음
 
@@ -114,10 +119,10 @@ Ops에는 평가 실행 등 필요한 경로만 허용하고, AI에서 Core로 �
 동일 작업을 무조건 재실행하지 않도록 멱등 키·상태·결과 불명 처리와 수동 재실행 정책을 검증한다.
 CI와 첫 클러스터 검증은 외부 API 스텁을 사용하며, 실제 호출은 승인된 데이터·횟수 범위에서만 한다.
 
-근거: [AI 라우터 조립](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/main.py),
-[문서 인증](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/application_preparation/router.py),
-[AI 도구 HTTP 클라이언트](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/assistant_agent/tools.py),
-[Core 도구 인증](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/web/AssistantToolAuthInterceptor.kt).
+근거: [AI 라우터 조립](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/main.py),
+[문서 인증](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/application_preparation/router.py),
+[AI 도구 HTTP 클라이언트](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/ai-service/app/assistant_agent/tools.py),
+[Core 도구 인증](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/web/AssistantToolAuthInterceptor.kt).
 
 ## 5. 첫 Core 추출 후보: 공고 카탈로그
 
@@ -138,8 +143,8 @@ CI와 첫 클러스터 검증은 외부 API 스텁을 사용하며, 실제 호�
 - 수집 전용 worker는 먼저 실행 역할을 나눌 수 있지만, 같은 스키마·코드를 공유한다면
   독립 MSA가 아닌 **Core의 worker 역할**이라고 표시한다.
 
-근거: [파트너의 현재 FK](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration/V8__create_partner_recruitment.sql),
-[관심 공고의 현재 FK](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration/V22__create_saved_support_program.sql).
+근거: [파트너의 현재 FK](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration/V8__create_partner_recruitment.sql),
+[관심 공고의 현재 FK](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/resources/db/migration/V22__create_saved_support_program.sql).
 
 ## 6. Kubernetes replica·실행 역할 제한
 
@@ -161,11 +166,11 @@ replica 1이어도 RollingUpdate의 surge나 기존 Compose와 병행 실행하�
 표현하지 않는다. 다만 이 장치의 존재만으로 모든 큐의 중복 소비·Pod 종료·유료 호출 안전성을
 검증했다고 볼 수는 없다.
 
-근거: [로그인 제한](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountLoginAttemptGuard.kt),
-[요청 admission](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/admission/SupportProgramRequestAdmissionService.kt),
-[수집 scheduler](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncScheduler.kt),
-[generation 게시 보호](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncService.kt),
-[문서 생성 Redis 락](https://github.com/GovBiz-Team/GovBiz-web/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationDocumentService.kt).
+근거: [로그인 제한](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountLoginAttemptGuard.kt),
+[요청 admission](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/admission/SupportProgramRequestAdmissionService.kt),
+[수집 scheduler](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncScheduler.kt),
+[generation 게시 보호](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncService.kt),
+[문서 생성 Redis 락](https://github.com/GovBiz-Team/GovBiz/blob/238510748e93ff6d32575ff7e7bb2315c4f251cb/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationDocumentService.kt).
 
 Core/AI의 현재 단순 health는 프로세스 응답 확인이지 모든 DB·색인·외부 AI 의존성 준비 완료가
 아니다. readiness와 liveness의 목적을 나누고, 외부 OpenAI 장애를 이유로 무한 재시작하지 않는다.

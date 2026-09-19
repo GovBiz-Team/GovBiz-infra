@@ -1,7 +1,7 @@
 """Run Ops-only checks in a NEW disposable kind cluster, never the active context.
 
 No AWS access, real environment files, production data, or paid AI requests.
-The caller builds the application image in GovBiz-web; this repository deploys it.
+The caller builds the application image in GovBiz; this repository deploys it.
 """
 
 import argparse

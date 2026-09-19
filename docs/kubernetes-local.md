@@ -7,7 +7,7 @@ Kubernetes는 포트폴리오 필수 목표다. 이번 구현은 **실제 Ops �
 
 ## 범위
 
-- GovBiz-web: Ops 이미지 기본 실행을 Gunicorn으로 변경, UID/GID 10001, 기본 이미지 검증.
+- GovBiz: Ops 이미지 기본 실행을 Gunicorn으로 변경, UID/GID 10001, 기본 이미지 검증.
   개발 Compose는 기존 runserver를 유지한다.
 - GovBiz-infra: Kustomize Ops Deployment·Service·ConfigMap, 로컬 전용 MySQL StatefulSet·PVC,
   namespace, pinned kind 노드, 구성 검사와 격리 클러스터 smoke.
@@ -44,10 +44,13 @@ Ops 관리 API를 연결하거나 공개하지 않는다. 단일 노드·local P
 
 ## 실행
 
-두 저장소 모두 이번 Kubernetes 변경이 포함된 revision을 사용한다. `main`에 병합하기 전에는
-GovBiz-web의 [`codex/kubernetes-ops-readiness`](https://github.com/GovBiz-Team/GovBiz-web/tree/codex/kubernetes-ops-readiness)와
-GovBiz-infra의 [`codex/local-kubernetes-validation`](https://github.com/GovBiz-Team/GovBiz-infra/tree/codex/local-kubernetes-validation)을 확인한다.
+두 저장소 모두 Kubernetes 변경과 서비스 폴더명 정리가 포함된 revision을 사용한다.
+현재 기본 브랜치는 GovBiz의 [`develop`](https://github.com/GovBiz-Team/GovBiz/tree/develop)과
+GovBiz-infra의 [`develop`](https://github.com/GovBiz-Team/GovBiz-infra/tree/develop)이다.
 기존 runserver 이미지로 이 smoke를 실행하면 기본 명령 검사에서 거절된다.
+
+Ops 소스 경로는 `backend/ops-service`이며, 아래 검증이 사용하는 Kubernetes 리소스
+`operations-api`와 이미지 접두사 `govbiz-ops`는 기존 이름을 유지한다.
 
 Docker Engine(API 1.48 이상)과 kubectl(1.36 계열), Python 3.13,
 공식 체크섬을 확인한 kind 0.33.0이 필요하다.
@@ -56,9 +59,9 @@ Docker Engine(API 1.48 이상)과 kubectl(1.36 계열), Python 3.13,
 Docker에 기존 전체 앱이 실행 중이면 메모리 사용량부터 확인하고, 임의로 기존 컨테이너를 중지하지 않는다.
 
 ```bash
-# GovBiz-web 저장소에서: 이미지 빌드는 애플리케이션 저장소의 책임이다.
+# GovBiz 저장소에서: 이미지 빌드는 애플리케이션 저장소의 책임이다.
 OPS_IMAGE="govbiz-ops:k8s-$(git rev-parse --short=12 HEAD)-$(date +%s)"
-docker build -t "$OPS_IMAGE" backend/ops
+docker build -t "$OPS_IMAGE" backend/ops-service
 
 # GovBiz-infra 저장소로 이동한 뒤
 cd ../GovBiz-infra

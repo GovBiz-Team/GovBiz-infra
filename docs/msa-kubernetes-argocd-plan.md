@@ -1,19 +1,22 @@
 # GovBiz MSA·Kubernetes·Argo CD 전환 설계
 
-이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 React·Core·AI·Ops를 GovBiz-web에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지하는 것으로 결정했다.
+이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 웹·모바일·공통 패키지와 Core·Catalog·AI·Ops를 GovBiz에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지한다. 두 저장소의 기본 브랜치는 `develop`이다.
 후속으로 Ops의 Gunicorn 실행 이미지와 로컬 Kubernetes 리소스·검증 도구를 추가했다.
 [최신 실행 범위](kubernetes-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
-Argo CD 연결, Core·AI의 Kubernetes 이식, 업무 서비스 추출과 운영 전환은 아직 구현하지 않았다.
+Catalog의 독립 프로세스·DB·Core HTTP 연동은 로컬에서 검증했다. Argo CD 연결,
+Core·Catalog·AI의 Kubernetes 이식과 AWS 운영 전환은 아직 구현하지 않았다.
+현재 소스 경로는 `backend/{core-service,catalog-service,ai-service,ops-service}`이며,
+아래 초기 분석의 커밋 고정 링크는 당시 경로를 유지한다.
 사용자 결정: **Kubernetes는 포트폴리오 필수 목표이며, 우선 로컬에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
 
 ## 1. 확인한 현재 상태
 
-초기 소스 분석 기준: GovBiz-infra `58c65aa`, GovBiz-web `3489756`, GovBiz-ops `611232d`.
+초기 소스 분석 기준: GovBiz-infra `58c65aa`, GovBiz `3489756`, GovBiz-ops `611232d`.
 이후 승인된 저장소 경계 변경은 [전환 기록](repository-transition.md)에 정리했다. 아래 소스 링크는 분석 당시 커밋을 고정하며 현재 운영 상태의 증거가 아니다.
 
 | 영역 | 현재 구현 | 전환 시 의미 |
 | --- | --- | --- |
-| 통합 실행 | GovBiz-web의 로컬 Compose가 Core·AI·Ops 등을 연결; infra submodule 사용 종료 | 애플리케이션 PR은 같은 저장소에서, 향후 환경별 배포 설정 PR은 infra에서 관리 |
+| 통합 실행 | GovBiz의 로컬 Compose가 Core·AI·Ops 등을 연결; infra submodule 사용 종료 | 애플리케이션 PR은 같은 저장소에서, 향후 환경별 배포 설정 PR은 infra에서 관리 |
 | Spring Core | 계정, 공고, 신청 준비, 중복 검토, 파트너, 리포트, 관리자 기능 | 업무별 직접 호출과 데이터 의존 관계를 풀어야 서비스가 독립된다 |
 | FastAPI | 조건 해석, 검색·색인·근거 답변, 문서 분석, 도우미 | 별도 실행 프로세스를 유지하고 Core와의 릴리스 결합을 해소한 뒤 추가 분리를 판단한다 |
 | Django | 상태 확인 API, 전용 MySQL; 후속 변경에서 이미지 기본 실행을 Gunicorn으로 변경 | 개발 Compose만 runserver 유지; 인증 연동과 운영 관리 업무는 미구현 |
@@ -22,9 +25,9 @@ Argo CD 연결, Core·AI의 Kubernetes 이식, 업무 서비스 추출과 운영
 
 확인한 파일과 현재 위치:
 
-- 로컬 통합 Compose와 Django 연결은 GovBiz-web의 `compose.yaml`, `compose.ops.yaml`로 이동한다. [전환 안내](repository-transition.md)
-- [운영 Compose](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)
-- [CodeBuild 설정](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/backend.yml), [릴리스 실행](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/release.py)
+- 로컬 통합 Compose와 Django 연결은 GovBiz의 `compose.yaml`, `compose.ops.yaml`로 이동한다. [전환 안내](repository-transition.md)
+- [운영 Compose](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)
+- [CodeBuild 설정](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/backend.yml), [릴리스 실행](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/release.py)
 - [Django Dockerfile](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/Dockerfile), [Django 설정](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/config/settings.py)
 
 Kubernetes는 컨테이너의 실행·복구·확장을 관리하고, Argo CD는 Git에 기록된 배포 설정을 클러스터에 반영한다.
@@ -33,20 +36,21 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 
 ## 2. 서비스 경계와 분리 순서
 
-아래 이름은 제안이며 새 저장소나 애플리케이션을 만든 상태가 아니다.
+아래 표는 배포 경계와 단계별 전환 방향이다. Core·AI·Ops 및 선택형 Catalog 소스는 GovBiz에 존재하며,
+기존 런타임 식별자 `core-api`·`operations-api`는 소스 폴더명 변경과 별개로 유지한다.
 
 | 배포 단위 | 담당할 책임 | 진행 방식 |
 | --- | --- | --- |
 | core-api | 계정·기업·세션과 아직 분리하지 않은 사용자 업무 | 초기에는 기존 기능 유지; 추출된 기능은 API·이벤트로 연동 |
-| operations-api | Django 기반 LLMOps·관리자 업무와 자체 운영 기록 | GovBiz-web의 `backend/ops/`에서 구현; 실행 프로세스·전용 DB는 분리하고 기존 Core 관리자 API는 필요한 범위에서 재사용 |
+| operations-api | Django 기반 LLMOps·관리자 업무와 자체 운영 기록 | GovBiz의 `backend/ops-service/`에서 구현; 실행 프로세스·전용 DB는 분리하고 기존 Core 관리자 API는 필요한 범위에서 재사용 |
 | ai-service | LLM·임베딩·RAG·문서 분석 실행 | 기존 FastAPI 유지; 외부 사용자에게 내부 API를 직접 공개하지 않음 |
-| catalog-service | 공고 수집·정규화·조회·검색 흐름과 공고 데이터 | 첫 Core 분리 후보; 기존 Spring 구현을 기반으로 경계 분리 |
+| catalog-service | 공고 수집·정규화·게시·색인과 원본 데이터 | 독립 DB와 Core 읽기 projection을 로컬 검증. Kubernetes·운영 전환은 별도 |
 | application-service | 신청 준비·문서 작업·중복 지원 검토와 작업 상태 | 공고·계정 계약 정리 후 분리 후보 |
 | 도메인별 worker | 해당 서비스의 큐 소비·수집·장기 작업 | 처리량과 실행 조건에 맞춰 API와 별도 프로세스로 운영 |
 
 워커 프로세스 분리는 같은 업무 서비스의 실행 역할을 나누는 작업이다. 워커 수를 MSA 서비스 수로 계산하지 않는다.
 리포트·파트너·계정을 처음부터 모두 별도 서버로 만들지는 않는다. 실제 변경 주기와 장애·확장 요구로 후속 분리를 결정한다.
-분리한 Spring 애플리케이션들을 GovBiz-web 저장소 안에서 각각 빌드해도 된다. MSA 서비스마다 Git 저장소가 반드시 하나씩 필요한 것은 아니다.
+분리한 Spring 애플리케이션들을 GovBiz 저장소 안에서 각각 빌드해도 된다. MSA 서비스마다 Git 저장소가 반드시 하나씩 필요한 것은 아니다.
 
 현재 코드에는 `account ↔ partner`, `supportprogram ↔ applicationpreparation`의 기능 간 import가 있다.
 신청 준비·중복 검토·리포트도 계정과 공고 코드를 사용한다.
@@ -66,7 +70,7 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 
 ## 4. GovBiz-infra의 목표 구조
 
-애플리케이션 코드·로컬 Compose·테스트는 GovBiz-web에 모은다.
+애플리케이션 코드·로컬 Compose·테스트는 GovBiz에 모은다.
 GovBiz-infra에는 향후 환경별 배포 상태와 Argo CD 정의만 추가한다.
 `environments/`에는 이제 Ops base와 local overlay·검증용 DB가 있다. `argocd/`에는 아직 README만 있다.
 아래 구조는 최종 확장 제안이며, 현재 실제 파일 목록과 실행법은 [로컬 검증 안내](kubernetes-local.md)를 따른다.
@@ -91,20 +95,21 @@ GovBiz-infra/
 
 처음에는 Kustomize의 base/overlay로 환경 차이를 관리한다. 서비스별 Argo CD Application으로 독립 배포와 상태 확인이 가능하게 한다.
 운영 Pod에는 개발 체크아웃 소스를 마운트하지 않는다. 애플리케이션 CI가 만든 불변 이미지 digest를 배포 설정에 기록한다.
-infra에서는 submodule SHA가 아닌 환경별 이미지 digest를 배포 버전으로 관리한다. 릴리스 PR에 이미지와 GovBiz-web 소스 커밋의 대응 관계를 남긴다.
+infra에서는 submodule SHA가 아닌 환경별 이미지 digest를 배포 버전으로 관리한다. 릴리스 PR에 이미지와 GovBiz 소스 커밋의 대응 관계를 남긴다.
 앱 이미지는 서로 독립적으로 갱신하되, 공개 계약 변경 시 소비자 호환성을 검증한다.
 
-현재 EC2 운영 Compose·CodeBuild·SSM 코드는 GovBiz-web의 `infrastructure/`에 유지한다.
+현재 EC2 운영 Compose·CodeBuild·SSM 코드는 GovBiz의 `infrastructure/`에 유지한다.
 이번 저장소 정리에서는 실제 운영 연결·서버 파일·이미지를 바꾸지 않는다. Kubernetes 전환 검증과 승인 뒤 해당 환경의 배포 기준·권한을 단일 경로로 옮긴다.
 
 현재 프론트엔드 배포를 Kubernetes로 반드시 옮길 필요는 없다. 외부 웹 호스팅을 유지하면서 백엔드만 전환할 수도 있다.
-React Native 앱은 향후 별도 GovBiz-app 저장소에서 개발할 계획이다. 앱 바이너리는 모바일 배포 대상으로 관리하며 Kubernetes에서 실행하지 않는다.
+React Native 앱은 GovBiz의 `mobile/`, 웹·앱 공통 계약은 `packages/shared/`에서 관리한다.
+앱 바이너리는 모바일 배포 대상으로 관리하며 Kubernetes에서 실행하지 않는다.
 
 ## 5. CI와 Argo CD의 역할
 
 ```mermaid
 flowchart LR
-    A["GovBiz-web PR·병합"] --> B["CI: 서비스별 테스트·이미지 빌드"]
+    A["GovBiz PR·병합"] --> B["CI: 서비스별 테스트·이미지 빌드"]
     B --> C["ECR: 불변 이미지"]
     C --> D["GovBiz-infra PR: 이미지 digest 갱신"]
     D --> E["환경별 배포 설정에 병합"]

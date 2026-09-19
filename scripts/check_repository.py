@@ -45,7 +45,7 @@ def file_errors(root):
             errors.append(f"Missing repository guide: {name}")
     for name in MOVED:
         if (root / name).exists():
-            errors.append(f"Local application configuration belongs in GovBiz-web: {name}")
+            errors.append(f"Local application configuration belongs in GovBiz: {name}")
     documents = list(root.glob("*.md"))
     for name in ("docs", "argocd", "environments"):
         documents.extend((root / name).rglob("*.md"))

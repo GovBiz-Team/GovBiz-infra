@@ -10,5 +10,5 @@ __pycache__/
 .vscode/
 
 # Legacy local checkouts are preserved for recovery, but are no longer submodules.
-# Application development now happens in the standalone GovBiz-web checkout.
+# Application development now happens in the standalone GovBiz checkout.
 /services/

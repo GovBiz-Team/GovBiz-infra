@@ -2,21 +2,25 @@
 
 작성일: 2026-09-19
 
+현재 저장소명은 `GovBiz`, 기본 브랜치는 양쪽 모두 `develop`이다. 아래 전환 절차의 도착 경로는
+현재 폴더명을 사용하며, `services/GovBiz-web` 같은 이전 체크아웃 경로는 실제 이전 대상이므로 보존한다.
+로컬 체크아웃 폴더가 아직 `GovBiz-web`이어도 저장소 연결이 올바르면 사용할 수 있다.
+
 ## 결정과 적용 범위
 
-- React·Core API·AI Service와 Django Ops 소스는 **GovBiz-web**에서 함께 개발한다.
-- 기존 Ops 코드는 `backend/ops/`로 가져온다. Django 실행 프로세스·전용 DB는 별도로 유지한다.
-- 로컬 통합 Compose와 검증 스크립트도 GovBiz-web으로 이동한다.
+- React·Core API·AI Service와 Django Ops 소스는 **GovBiz**에서 함께 개발한다.
+- 기존 Ops 코드는 `backend/ops-service/`로 가져온다. Django 실행 프로세스·전용 DB는 별도로 유지한다.
+- 로컬 통합 Compose와 검증 스크립트도 GovBiz로 이동한다.
 - GovBiz-infra에서는 애플리케이션 submodule을 제거하고 향후 환경별 배포 설정·Argo CD 정의를 관리한다.
 - Kubernetes 클러스터, 실제 manifests, Argo CD 자동 배포, 새 운영 환경은 이번 변경에 포함하지 않는다.
 - 현재 EC2 Compose·CodeBuild·SSM과 Vercel 배포 연결은 변경하지 않는다.
 
 기존 GovBiz-ops 원격 저장소는 삭제하거나 archive하지 않는다. Ops는 다음 기준 커밋의 **코드 스냅샷**을
-가져오며 원격 저장소의 Git 이력 전체를 GovBiz-web에 병합하지 않는다.
+가져오며 원격 저장소의 Git 이력 전체를 GovBiz에 병합하지 않는다.
 
 | 출처 | 기준 커밋 |
 | --- | --- |
-| GovBiz-web | [34897562fcf16e30f7c811ad29eaa4b305f4f3ef](https://github.com/GovBiz-Team/GovBiz-web/tree/34897562fcf16e30f7c811ad29eaa4b305f4f3ef) |
+| GovBiz | [34897562fcf16e30f7c811ad29eaa4b305f4f3ef](https://github.com/GovBiz-Team/GovBiz/tree/34897562fcf16e30f7c811ad29eaa4b305f4f3ef) |
 | GovBiz-ops | [611232de21f69689c4024f3935b8d693b03b7777](https://github.com/GovBiz-Team/GovBiz-ops/tree/611232de21f69689c4024f3935b8d693b03b7777) |
 
 로컬 작업 후 커밋·푸시·PR 병합은 별도 작업이다. 로컬 경로 전환만으로 팀원의 체크아웃과 배포 source가 바뀌지 않는다.
@@ -25,9 +29,11 @@
 
 ```text
 skn34_project/
-├─ GovBiz-web/                   새 개발 기준 체크아웃
+├─ GovBiz/                      새 개발 기준 체크아웃
 │  ├─ frontend/
-│  ├─ backend/{core-api,ai-service,ops}/
+│  ├─ mobile/
+│  ├─ packages/shared/
+│  ├─ backend/{core-service,catalog-service,ai-service,ops-service}/
 │  ├─ compose.yaml
 │  ├─ compose.ops.yaml
 │  ├─ compose.existing-data.yaml
@@ -45,20 +51,20 @@ skn34_project/
 ## 1. 변경사항과 환경 파일 확인
 
 기존 체크아웃 각각에서 `git status --short`를 확인한다. 기준 커밋 이후의 미커밋 업무 변경은 자동으로 가져오지 않으므로
-새 GovBiz-web에 필요한 변경만 검토·반영한다. 미커밋 변경을 버리거나 실제 `.env`를 예시 값으로 덮어쓰지 않는다.
+새 GovBiz에 필요한 변경만 검토·반영한다. 미커밋 변경을 버리거나 실제 `.env`를 예시 값으로 덮어쓰지 않는다.
 
 | 이전 파일 | 새 위치 | 처리 |
 | --- | --- | --- |
-| infra의 통합 설정 `.env` | GovBiz-web의 `.env.compose` | `.env.compose.example`을 기준으로 사용자 지정 프로젝트명·볼륨 값을 검토해서 반영 |
-| `services/GovBiz-web/.env` | GovBiz-web의 `.env` | 기존 실제 값 보존; 자동 복사하지 않음 |
-| `services/GovBiz-ops/.env` | GovBiz-web의 `backend/ops/.env` | 기존 실제 값 보존; 자동 복사하지 않음 |
+| infra의 통합 설정 `.env` | GovBiz의 `.env.compose` | `.env.compose.example`을 기준으로 사용자 지정 프로젝트명·볼륨 값을 검토해서 반영 |
+| `services/GovBiz-web/.env` | GovBiz의 `.env` | 기존 실제 값 보존; 자동 복사하지 않음 |
+| `services/GovBiz-ops/.env` | GovBiz의 `backend/ops-service/.env` | 기존 실제 값 보존; 자동 복사하지 않음 |
 
 새 통합 설정의 서비스 환경 경로는 다음과 같다. 이 파일에는 서비스의 실제 비밀번호·API 키를 공통으로 넣지 않는다.
 
 ```dotenv
 COMPOSE_PROJECT_NAME=govbiz-infra
 GOVBIZ_APP_ENV_FILE=./.env
-GOVBIZ_DJANGO_ENV_FILE=./backend/ops/.env
+GOVBIZ_DJANGO_ENV_FILE=./backend/ops-service/.env
 ```
 
 기존 프로젝트명이 다르면 기존 값을 유지한다. Compose 상위 환경변수는 포함된 서비스 설정을 덮어쓸 수 있으므로
@@ -82,7 +88,7 @@ GOVBIZ_DJANGO_ENV_FILE=./backend/ops/.env
 
 ### 이전에 govbiz와 govbiz4-django를 각각 실행한 경우
 
-GovBiz-web의 `compose.existing-data.yaml`을 선택하면 기존 독립 프로젝트 볼륨을 재사용한다.
+GovBiz의 `compose.existing-data.yaml`을 선택하면 기존 독립 프로젝트 볼륨을 재사용한다.
 실제 볼륨명이 기본값과 다르면 `.env.compose`의 `GOVBIZ_EXISTING_*` 값을 먼저 맞춘다.
 
 ```dotenv
@@ -102,21 +108,21 @@ override는 `external: true`이므로 지정된 기존 볼륨이 없으면 실�
 2. 기존 구성 파일이 아직 있을 때 같은 설정으로 기존 컨테이너를 정리한다. 파일이 이미 이동했다면 기존 보존 체크아웃/이전 revision의 구성으로 대상을 확인한다. 다른 프로젝트를 추측해서 종료하지 않는다.
 3. `docker compose down`에 **`-v` 또는 `--volumes`를 붙이지 않는다.** 기존 볼륨을 삭제하는 옵션이다.
 4. 같은 데이터 볼륨을 사용하는 이전 DB 컨테이너가 남아 있지 않은지 확인한다. 포트만 바꾸어 두 DB를 동시에 실행하지 않는다.
-5. 새 GovBiz-web에서 아래와 같이 검증한 뒤 실행한다.
+5. 새 GovBiz에서 아래와 같이 검증한 뒤 실행한다.
 
 ```bash
-# GovBiz-web 디렉터리에서 실행
+# GovBiz 디렉터리에서 실행
 docker compose --env-file .env.compose config --quiet
 docker compose --env-file .env.compose up -d --build
 docker compose --env-file .env.compose ps
 ```
 
-새 개발 소스 bind mount는 GovBiz-web 체크아웃을 가리킨다. 이전 `GovBiz-infra/services/`의 파일을 수정해도
+새 개발 소스 bind mount는 GovBiz 체크아웃을 가리킨다. 이전 `GovBiz-infra/services/`의 파일을 수정해도
 새 컨테이너에 반영되지 않는다. 환경 파일·소스·기존 데이터 확인이 끝나기 전 이전 체크아웃을 삭제하지 않는다.
 
 ## 검증과 이후 PR
 
-- 서비스 코드·Dockerfile·로컬 Compose 변경: GovBiz-web PR과 해당 테스트.
+- 서비스 코드·Dockerfile·로컬 Compose 변경: GovBiz PR과 해당 테스트.
 - 미래 환경별 digest·Kubernetes·Argo CD 설정 변경: GovBiz-infra PR과 배포 설정 검증.
 - 실제 비밀값, 데이터 볼륨, 운영 클러스터 자격 증명은 어느 PR에도 포함하지 않는다.
 - 이미지 빌드 성공이나 infra 문서 검증 통과를 실제 GitOps 동기화 완료로 표시하지 않는다.

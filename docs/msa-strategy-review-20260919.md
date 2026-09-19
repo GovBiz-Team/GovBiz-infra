@@ -2,6 +2,11 @@
 
 작성일: 2026-09-19
 
+이 문서는 초기 전략 검토 기록이다. 현재 이름은 `GovBiz`이며 웹·모바일·공통 패키지와
+`backend/{core-service,catalog-service,ai-service,ops-service}`를 함께 관리한다.
+아래의 `GovBiz-app` 별도 저장소 안과 과거 소스 경로는 당시 제안·감사 기준이며 현재 실행 안내가 아니다.
+최신 구조와 완료 범위는 [저장소 개요](../README.md)를 따른다.
+
 상태: **MSA·운영 전환은 설계 제안이다.** 이후 사용자가 승인한 저장소 경계는 Ops를 GovBiz-web에 통합하고 GovBiz-infra를 별도 배포 설정 저장소로 유지하는 것이다. 이 저장소 정리는 업무 서비스 추출·Kubernetes·Argo CD 운영 전환을 실행하거나 승인한 것으로 해석하지 않는다. [전환 기록](repository-transition.md)
 
 ## 1. 결론과 판단 범위
@@ -92,19 +97,19 @@ GitHub 사례는 아래 커밋의 파일을 GitHub API로 직접 읽었다. 운�
 
 | 관찰 | 코드 근거 | 전략상 의미 |
 | --- | --- | --- |
-| Core·AI는 별도 이미지지만 한 릴리스로 묶임 | [release.py](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/release.py), `main()`에서 두 이미지 발행 후 SSM 동시 전달 | 저장소 분리보다 선택적 배포·버전 호환 검증이 먼저 |
-| 호스트도 두 이미지에 동일한 Commit을 요구 | [deploy_host.py](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/deploy_host.py), `main()`의 이미지 revision 검사 및 `restore_or_start()` | 빌드 경로만 나눠서는 안 됨; SSM 계약·호스트 검증·복구 범위도 서비스별로 변경 |
-| 배포 스크립트와 저장소 Compose의 네트워크 전제가 다름 | 같은 호스트 스크립트는 Core proxy IP `172.30.254.3`을 요구하나 [Compose](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)는 이를 지정하지 않음 | 호스트 전용 패치가 있다는 소스 근거; 실제 운영 드리프트 여부는 미확인. 저장소 파일을 바로 덮어쓰지 않음 |
+| Core·AI는 별도 이미지지만 한 릴리스로 묶임 | [release.py](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/release.py), `main()`에서 두 이미지 발행 후 SSM 동시 전달 | 저장소 분리보다 선택적 배포·버전 호환 검증이 먼저 |
+| 호스트도 두 이미지에 동일한 Commit을 요구 | [deploy_host.py](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/deploy_host.py), `main()`의 이미지 revision 검사 및 `restore_or_start()` | 빌드 경로만 나눠서는 안 됨; SSM 계약·호스트 검증·복구 범위도 서비스별로 변경 |
+| 배포 스크립트와 저장소 Compose의 네트워크 전제가 다름 | 같은 호스트 스크립트는 Core proxy IP `172.30.254.3`을 요구하나 [Compose](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)는 이를 지정하지 않음 | 호스트 전용 패치가 있다는 소스 근거; 실제 운영 드리프트 여부는 미확인. 저장소 파일을 바로 덮어쓰지 않음 |
 | 배포 최신 커밋 확인이 이전 개인 저장소 주소를 사용 | 같은 파일의 `is_current_main()` | 새 조직 저장소의 자동 배포가 연결됐다고 가정 금지 |
-| Core 초기 기동이 AI healthy를 기다림 | [운영 Compose](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)의 `core-api.depends_on` | 기동 결합과 실행 중 장애 전파를 각각 검증; 이 설정만으로 실행 중 Core가 중지된다고 단정하지 않음 |
-| 공고 공개와 양식 분석 등록이 한 트랜잭션 | [SupportProgramCatalogPublicationService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramCatalogPublicationService.kt) | Catalog를 폴더째 떼기 전에 원자성·소유권 결정 |
-| 공고 공개 전에 키워드·AI 색인 성공을 기다림 | [BizInfo 동기화](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncService.kt), [IndexSyncService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt) | 단순 비동기 이벤트화가 공개 시점·검색 최신성 정책을 바꿀 수 있음 |
-| 파트너 조회가 계정·기업·공고를 JOIN | [PartnerRecruitmentMapper.xml](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/mybatis/partner/repository/PartnerRecruitmentMapper.xml) | 서비스 분리 후에는 소유 서비스 API 또는 명시적인 읽기 복제본 필요 |
-| 관심 공고와 파트너 모집에 공고 FK 존재 | [V22](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V22__create_saved_support_program.sql), [V8](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V8__create_partner_recruitment.sql) | 데이터 이동 시 ID·참조·삭제 정책을 보존해야 함 |
-| 인증은 JWT 검사만으로 끝나지 않음 | [AccountSessionService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt) | Ops에서 JWT 서명만 확인하면 세션 폐기·유휴 만료·계정 정지를 놓침 |
-| AI가 Core 내부 도구를 역호출 | [CoreToolClient](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/assistant_agent/tools.py) | Core → AI → Core의 지연·동시성·위임 권한까지 계약 범위 |
-| DB 작업 선점·outbox·수동 ACK가 이미 존재 | [OutboxScheduler](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewOutboxScheduler.kt), [Consumer](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewRunConsumer.kt), [Mapper](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/mybatis/combinationreview/repository/CombinationReviewRunMapper.xml) | 새 메시지 시스템을 만들지 말고 기존 안전장치의 경계를 보존 |
-| 일부 동시성 보호는 프로세스 내부 | [색인 Service](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/support_program_index/service.py), [문서 어댑터](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/application_preparation/document_adapters.py) | replicas 증가가 전역 제한·쓰기 직렬화를 보장하지 않음 |
+| Core 초기 기동이 AI healthy를 기다림 | [운영 Compose](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)의 `core-api.depends_on` | 기동 결합과 실행 중 장애 전파를 각각 검증; 이 설정만으로 실행 중 Core가 중지된다고 단정하지 않음 |
+| 공고 공개와 양식 분석 등록이 한 트랜잭션 | [SupportProgramCatalogPublicationService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramCatalogPublicationService.kt) | Catalog를 폴더째 떼기 전에 원자성·소유권 결정 |
+| 공고 공개 전에 키워드·AI 색인 성공을 기다림 | [BizInfo 동기화](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/BizInfoSupportProgramCatalogSyncService.kt), [IndexSyncService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt) | 단순 비동기 이벤트화가 공개 시점·검색 최신성 정책을 바꿀 수 있음 |
+| 파트너 조회가 계정·기업·공고를 JOIN | [PartnerRecruitmentMapper.xml](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/mybatis/partner/repository/PartnerRecruitmentMapper.xml) | 서비스 분리 후에는 소유 서비스 API 또는 명시적인 읽기 복제본 필요 |
+| 관심 공고와 파트너 모집에 공고 FK 존재 | [V22](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V22__create_saved_support_program.sql), [V8](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V8__create_partner_recruitment.sql) | 데이터 이동 시 ID·참조·삭제 정책을 보존해야 함 |
+| 인증은 JWT 검사만으로 끝나지 않음 | [AccountSessionService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt) | Ops에서 JWT 서명만 확인하면 세션 폐기·유휴 만료·계정 정지를 놓침 |
+| AI가 Core 내부 도구를 역호출 | [CoreToolClient](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/assistant_agent/tools.py) | Core → AI → Core의 지연·동시성·위임 권한까지 계약 범위 |
+| DB 작업 선점·outbox·수동 ACK가 이미 존재 | [OutboxScheduler](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewOutboxScheduler.kt), [Consumer](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewRunConsumer.kt), [Mapper](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/mybatis/combinationreview/repository/CombinationReviewRunMapper.xml) | 새 메시지 시스템을 만들지 말고 기존 안전장치의 경계를 보존 |
+| 일부 동시성 보호는 프로세스 내부 | [색인 Service](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/support_program_index/service.py), [문서 어댑터](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/ai-service/app/application_preparation/document_adapters.py) | replicas 증가가 전역 제한·쓰기 직렬화를 보장하지 않음 |
 | Ops는 아직 업무·인증이 없음 | [settings.py](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/config/settings.py), [Dockerfile](https://github.com/GovBiz-Team/GovBiz-ops/blob/611232de21f69689c4024f3935b8d693b03b7777/Dockerfile) | 관리자 시스템 완성 상태가 아님; 개발 서버를 그대로 운영하지 않음 |
 
 Core의 production Kotlin import를 기능 디렉터리 기준으로 집계했을 때 `account → partner` 4개 파일, 역방향 5개, `applicationpreparation → supportprogram` 6개, 역방향 1개가 확인됐다. 이는 **정적 import 결합 지표**이며 런타임 Bean 순환이나 실제 호출 횟수의 증거는 아니다.
@@ -122,11 +127,11 @@ Core의 production Kotlin import를 기능 디렉터리 기준으로 집계했�
 | AI 실행 | 기존 FastAPI | 모델 호출·프롬프트 버전·입출력 검증·임베딩·Qdrant 벡터 표현 | 먼저 독립 릴리스. 별도 Git 저장소는 보류 |
 | 운영 관리 | Django Ops | 운영 평가 실행/결과·승인·자체 감사 기록 등 새로 합의한 운영 데이터 | 계정·공고 원본·사용자 작업 결과를 복제한 두 번째 원본 DB 금지 |
 
-공용 양식 메타데이터는 현재 `applicationpreparation` 패키지에 있어도 개인 신청서와 같은 소유자라고 단정하지 않는다. [V18](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V18__add_discovered_application_forms.sql)·[V36](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V36__create_application_form_availability.sql)는 제공처·공고·원문·모델 버전에 결합된 공용 데이터를 보여준다. 이를 Catalog 측으로 묶는 안을 우선 검토하면 공고 공개와 분석 등록의 로컬 트랜잭션을 유지할 여지가 있다. 개인 fact·초안·생성 파일은 Core 업무 모듈에 남긴다. 실제 모든 사용처·쓰기 경로를 확인한 뒤 확정한다.
+공용 양식 메타데이터는 현재 `applicationpreparation` 패키지에 있어도 개인 신청서와 같은 소유자라고 단정하지 않는다. [V18](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V18__add_discovered_application_forms.sql)·[V36](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V36__create_application_form_availability.sql)는 제공처·공고·원문·모델 버전에 결합된 공용 데이터를 보여준다. 이를 Catalog 측으로 묶는 안을 우선 검토하면 공고 공개와 분석 등록의 로컬 트랜잭션을 유지할 여지가 있다. 개인 fact·초안·생성 파일은 Core 업무 모듈에 남긴다. 실제 모든 사용처·쓰기 경로를 확인한 뒤 확정한다.
 
-[V26](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V26__create_application_form_discovery_job.sql)은 사용자별 request key 중복 방지와 **모든 사용자에 걸친 공고별 활성 분석 작업 유일성**을 함께 보장한다. 분리 후보는 Core가 사용자 요청·조회 권한을, Catalog가 공고별 실행 배타권과 공용 결과를 맡는 안이다. 아직 확정 설계가 아니며, 두 사용자의 동시 요청·API 재시도·응답 유실에도 같은 분석을 중복 실행하지 않는 계약이 먼저다.
+[V26](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V26__create_application_form_discovery_job.sql)은 사용자별 request key 중복 방지와 **모든 사용자에 걸친 공고별 활성 분석 작업 유일성**을 함께 보장한다. 분리 후보는 Core가 사용자 요청·조회 권한을, Catalog가 공고별 실행 배타권과 공용 결과를 맡는 안이다. 아직 확정 설계가 아니며, 두 사용자의 동시 요청·API 재시도·응답 유실에도 같은 분석을 중복 실행하지 않는 계약이 먼저다.
 
-또한 [ApplicationDocumentMappingService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationDocumentMappingService.kt)는 문서 생성 경로에서 공용 snapshot에 document map을 쓰고, [ApplicationFormService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationFormService.kt)는 기존 신청의 과거 formVersionId를 조회한다. 추출 시 공용 매핑 갱신 명령의 소유자, `(formVersionId, pipelineVersion, sourceHash)` 계약, 과거 버전 보존과 장애 시 기존 신청 조회 정책까지 결정해야 한다. 읽기용 고정 snapshot을 보존하더라도 두 개의 원본 writer를 만들지 않는다.
+또한 [ApplicationDocumentMappingService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationDocumentMappingService.kt)는 문서 생성 경로에서 공용 snapshot에 document map을 쓰고, [ApplicationFormService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationFormService.kt)는 기존 신청의 과거 formVersionId를 조회한다. 추출 시 공용 매핑 갱신 명령의 소유자, `(formVersionId, pipelineVersion, sourceHash)` 계약, 과거 버전 보존과 장애 시 기존 신청 조회 정책까지 결정해야 한다. 읽기용 고정 snapshot을 보존하더라도 두 개의 원본 writer를 만들지 않는다.
 
 Qdrant는 AI가 쓰는 파생 데이터이고 공고 원본의 기준은 Catalog다. AI가 공고 DB를 직접 고치거나 Ops가 Qdrant 컬렉션을 임의로 갱신하지 않는다. 임베딩 모델·차원·청크 방식 변경은 새 색인 버전 생성 → 완전성 확인 → 활성 버전 교체 → 이전 버전 보존으로 다룬다.
 
@@ -161,11 +166,11 @@ Catalog 추출 전에는 공고 조회도 Core 내부 모듈 호출이다. 추�
 3. 웹 쿠키는 호스트 범위·CSRF·Origin 검사를 포함한다. 별도 관리자 도메인에 쿠키가 저절로 전달된다고 가정하지 않는다. 초기에는 같은 origin의 경로 라우팅을 우선 검토하고, 다른 origin이면 별도 위임 흐름을 설계한다.
 4. 모바일 인증은 별도 클라이언트 계약으로 정한다. 웹 쿠키·브라우저 proxy secret을 앱에 복사하지 않는다. 공개 앱에 서버용 비밀키를 넣지 않는다.
 5. 관리 명령은 대상 업무 서비스가 최종 사용자 권한과 객체 소유권을 다시 검사하고 감사 기록을 남긴다. Ops가 보낸 `accountId`, `role`만 믿지 않는다.
-6. 초기 관리 요청의 권한 검증에는 positive cache를 두지 않는 안을 우선한다. [현재 세션 검사](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt)는 마지막 사용 시각도 갱신하므로, 새 introspection이 단순 확인인지 사용자 활동인지 분리한다. Ops 자동 polling만으로 세션 유휴 만료가 계속 연장되지 않도록 정책과 테스트를 정한다. 동일 origin이라도 Ops의 상태 변경 요청에는 CSRF 검증이 필요하다.
+6. 초기 관리 요청의 권한 검증에는 positive cache를 두지 않는 안을 우선한다. [현재 세션 검사](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/account/service/AccountSessionService.kt)는 마지막 사용 시각도 갱신하므로, 새 introspection이 단순 확인인지 사용자 활동인지 분리한다. Ops 자동 polling만으로 세션 유휴 만료가 계속 연장되지 않도록 정책과 테스트를 정한다. 동일 origin이라도 Ops의 상태 변경 요청에는 CSRF 검증이 필요하다.
 
 ### 기존 도구 토큰에 대한 주의
 
-[AssistantToolTokenService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/service/AssistantToolTokenService.kt)의 위임 토큰 서명키와 [AI에 전달되는 공유 비밀](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)이 같다. 따라서 이 토큰을 **AI 서비스가 침해되어도 다른 사용자를 가장할 수 없는 경계**로 간주할 수 없다. 또한 [도구 인터셉터](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/web/AssistantToolAuthInterceptor.kt)는 세션 쿠키가 아니라 계정·서명·만료를 확인한다.
+[AssistantToolTokenService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/service/AssistantToolTokenService.kt)의 위임 토큰 서명키와 [AI에 전달되는 공유 비밀](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/compose.prod.yaml)이 같다. 따라서 이 토큰을 **AI 서비스가 침해되어도 다른 사용자를 가장할 수 없는 경계**로 간주할 수 없다. 또한 [도구 인터셉터](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/assistant/web/AssistantToolAuthInterceptor.kt)는 세션 쿠키가 아니라 계정·서명·만료를 확인한다.
 
 Ops의 관리자 인증에 이 방식을 그대로 복제하지 않는다. 향후 위임 인증을 강화할 때는 서비스 호출 인증과 사용자 위임을 분리하고, 서명 비밀을 수신 서비스에 공유하지 않는 방식 또는 Core의 opaque 토큰 검증을 검토한다. scope·audience·만료·세션 폐기·현재 정지 상태를 명시한다. 이 문서에서는 인증 코드를 변경하지 않았다.
 
@@ -174,7 +179,7 @@ Ops의 관리자 인증에 이 방식을 그대로 복제하지 않는다. 향�
 ### 계약과 장애
 
 - Core↔AI의 요청·응답, 오류 코드, 인증 헤더, 입력 크기, 모델/프롬프트 버전, 요청 deadline을 버전된 계약으로 관리한다. 공유 DB 모델·공통 업무 라이브러리를 배포하지 않는다.
-- 기존 [계약 fixture](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/resources/assistant/contract-request.json)를 활용하되 양쪽 스키마 적합성만으로 끝내지 않는다. 현재 배포된 Core + 새 AI, 새 Core + 현재 AI의 호환성을 검증한다. 깨지는 변경은 추가 → 전환 → 제거 순서로 한다.
+- 기존 [계약 fixture](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/resources/assistant/contract-request.json)를 활용하되 양쪽 스키마 적합성만으로 끝내지 않는다. 현재 배포된 Core + 새 AI, 새 Core + 현재 AI의 호환성을 검증한다. 깨지는 변경은 추가 → 전환 → 제거 순서로 한다.
 - Core → AI → Core 도구 경로는 실제로 있으므로 없다고 그리지 않는다. 읽기 도구가 다시 AI를 호출하는 재귀는 금지하고 호출 수·전체 시간·동시 실행을 제한한다.
 - 일반 조회의 짧은 동기 요청과 문서 생성 같은 장기 작업을 구분한다. 후자는 기존 job ID·상태 조회·RabbitMQ 방식을 보존/확장한다.
 - 브로커 메시지 재발행과 OpenAI 유료 호출 재시도는 다른 행위다. 호출 결과가 불명확하면 기존 `UNKNOWN`·검토 정책을 유지한다. timeout을 모델 실행·청구 취소로 표시하지 않는다.
@@ -192,7 +197,7 @@ Ops의 관리자 인증에 이 방식을 그대로 복제하지 않는다. 향�
 
 ### 공고 공개와 검색 준비 상태에 대한 필수 결정
 
-현재 [IndexSyncService](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt)는 Elasticsearch와 AI 색인 batch 성공을 확인한 뒤 반환한다. [V24](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V24__require_lexical_index_readiness.sql)에도 두 색인의 준비 상태를 함께 요구한 이력이 있다. 이것은 여러 저장소를 하나의 ACID 트랜잭션으로 묶는다는 뜻은 아니다.
+현재 [IndexSyncService](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/kotlin/ai/govbiz/core/supportprogram/service/sync/SupportProgramIndexSyncService.kt)는 Elasticsearch와 AI 색인 batch 성공을 확인한 뒤 반환한다. [V24](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/main/resources/db/migration/V24__require_lexical_index_readiness.sql)에도 두 색인의 준비 상태를 함께 요구한 이력이 있다. 이것은 여러 저장소를 하나의 ACID 트랜잭션으로 묶는다는 뜻은 아니다.
 
 분리 ADR은 아래 둘 중 하나를 명시해야 한다. 초기 기본안은 기존 사용자 동작을 보존하는 1번이다.
 
@@ -222,7 +227,7 @@ Elasticsearch만 성공, AI만 성공, AI ACK 유실, 오래된 generation 지�
 - 새 source 전환 PR과 서비스 선택 배포 PR을 구분한다. 확인 없이 두 저장소의 webhook을 동시에 활성화하지 않는다.
 - Core·AI별 변경 경로를 계산해 관련 테스트·이미지만 빌드한다. 계약·공통 배포 설정 변경은 양쪽 검증을 강제한다.
 - 릴리스 기록은 각 서비스의 source SHA, 이미지 digest, 설정 revision, migration 상태, 호환 버전을 포함한다. 다른 서비스 이미지를 최신 태그로 따라가게 하지 않는다.
-- 현재 [SSM 문서 생성기](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/ssm_document.py)는 단일 `Commit`과 두 이미지 입력을 받아 호스트 코드를 문서에 포함한다. `release.py`뿐 아니라 **SSM 매개변수·문서 버전·deploy_host.py의 이미지 라벨 검사·복구·테스트**를 함께 설계해야 혼합 버전 배포가 가능하다. 소스 수정만으로 AWS에 등록된 SSM 문서가 바뀌었다고 가정하지 않는다.
+- 현재 [SSM 문서 생성기](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/infrastructure/codebuild/ssm_document.py)는 단일 `Commit`과 두 이미지 입력을 받아 호스트 코드를 문서에 포함한다. `release.py`뿐 아니라 **SSM 매개변수·문서 버전·deploy_host.py의 이미지 라벨 검사·복구·테스트**를 함께 설계해야 혼합 버전 배포가 가능하다. 소스 수정만으로 AWS에 등록된 SSM 문서가 바뀌었다고 가정하지 않는다.
 - 서비스별 배포 예시는 Core `C1`, AI `A2` 조합이다. 두 이미지를 하나의 SHA로 묶지 않고 각 이미지의 실제 source SHA와 digest를 확인한다. AI 변경 실패 시 AI의 이전 승인 digest로 복귀하며 Core와 상태 저장소를 보존하는지 검사한다. 호환성 검사는 생략하지 않는다.
 - 현재 SSM 방식으로도 지정 서비스만 교체·검증·되돌리는 기능을 만들 수 있다. Kubernetes 도입을 기다릴 이유는 없다.
 - 운영 설정의 단일 기준을 정한 뒤 infra로 이동한다. 검증되지 않은 새 Compose를 기존 EC2 경로에 바로 덮어쓰지 않는다.
@@ -232,7 +237,7 @@ Elasticsearch만 성공, AI만 성공, AI ACK 유실, 오래된 generation 지�
 
 - 현재 `deploy_host.py`는 배포 전에 모든 서비스와 Core→AI health가 정상이어야 진행한다. 따라서 **AI가 이미 unhealthy인 상황을 새 AI 이미지로 복구하는 경로**는 별도 설계가 필요하다. 정상 배포와 명시적으로 승인된 대상 서비스 복구를 구분하되, 저장소/digest·플랫폼·설정·권한·상태 저장소 보호 검사를 일괄 우회하지 않는다.
 - 파일 잠금은 동시 실행을 막지만 오래된 배포 의도를 판별하지는 않는다. 독립 파이프라인에서는 환경 단위 잠금에 더해 expected previous manifest/digest 확인, 요청 ID 기반 재전송 처리, 배포 중 설정 변경 충돌 처리가 필요하다. 응답 timeout 후 새 요청으로 무작정 재전송하지 않는다.
-- [기존 배포 문서](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/docs/deployment-codebuild.md)는 ECR·제한된 SSM 실행 권한을 가진 CodeBuild와 `GOVBIZ_DEPLOY_ENABLED=false` 검증 절차를 설명한다. 이 스위치는 애플리케이션 분기일 뿐 IAM 권한을 제거하지 않는다. **미신뢰 PR 검증 실행 주체와 운영 발행/배포 실행 주체를 분리**하고, 검증 역할에는 ECR push·SSM 실행·운영 비밀 접근 권한을 주지 않는 것이 기준이다. 실제 운영 역할의 설정은 이번에 확인하지 않았다.
+- [기존 배포 문서](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/docs/deployment-codebuild.md)는 ECR·제한된 SSM 실행 권한을 가진 CodeBuild와 `GOVBIZ_DEPLOY_ENABLED=false` 검증 절차를 설명한다. 이 스위치는 애플리케이션 분기일 뿐 IAM 권한을 제거하지 않는다. **미신뢰 PR 검증 실행 주체와 운영 발행/배포 실행 주체를 분리**하고, 검증 역할에는 ECR push·SSM 실행·운영 비밀 접근 권한을 주지 않는 것이 기준이다. 실제 운영 역할의 설정은 이번에 확인하지 않았다.
 - 배포자는 승인된 ECR 저장소·대상 EC2·고정 SSM 문서 버전에만 접근한다. 범용 셸 문서 실행, IAM 수정, SSM 문서 수정은 허용하지 않는다. 문서 버전 변경은 검토된 관리자 절차로 분리하고, 보호 브랜치와 배포 코드 리뷰를 유지한다. manifest 검증은 digest와 OCI 라벨 대응을 확인하되, 라벨 자체를 신뢰할 수 있는 빌드 증명으로 과장하지 않는다.
 
 ### Kubernetes·Argo CD 트랙
@@ -304,8 +309,8 @@ Ops 첫 기능은 모든 관리자 CRUD를 이동하는 작업이 아니라, 권
 
 | 구분 | 근거·대상 | 이번 조사에서의 상태 |
 | --- | --- | --- |
-| 기존 통합 테스트 재사용 | [CombinationReviewQueueIntegrationTest](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewQueueIntegrationTest.kt): 실제 MySQL 8.4·RabbitMQ와 AI 스텁으로 중복 배달, 브로커 장애, binding 누락, UNKNOWN 재실행 금지 검증 | 테스트 코드 확인; 이번에 실행하지 않음 |
-| 기존 트랜잭션·버전 회귀 유지 | [ApplicationFormAvailabilityIntegrationTest](https://github.com/GovBiz-Team/GovBiz-web/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationFormAvailabilityIntegrationTest.kt): 공개/등록 rollback, 과거 양식 보존, 활성화 실패 rollback | 테스트 코드 확인; 새 계약/소유권으로 바꿀 때도 보존 |
+| 기존 통합 테스트 재사용 | [CombinationReviewQueueIntegrationTest](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/kotlin/ai/govbiz/core/combinationreview/service/CombinationReviewQueueIntegrationTest.kt): 실제 MySQL 8.4·RabbitMQ와 AI 스텁으로 중복 배달, 브로커 장애, binding 누락, UNKNOWN 재실행 금지 검증 | 테스트 코드 확인; 이번에 실행하지 않음 |
+| 기존 트랜잭션·버전 회귀 유지 | [ApplicationFormAvailabilityIntegrationTest](https://github.com/GovBiz-Team/GovBiz/blob/34897562fcf16e30f7c811ad29eaa4b305f4f3ef/backend/core-api/src/test/kotlin/ai/govbiz/core/applicationpreparation/service/ApplicationFormAvailabilityIntegrationTest.kt): 공개/등록 rollback, 과거 양식 보존, 활성화 실패 rollback | 테스트 코드 확인; 새 계약/소유권으로 바꿀 때도 보존 |
 | 새 실행환경 검증 | 별도 Core/worker 두 프로세스 경쟁, ACK 전후 강제 종료, 네트워크 응답 유실, 혼합 Core·AI 버전, writer 전환/복구 | 이행 단계에서 추가할 실험; listener 중지나 스텁 예외와 동등하게 취급하지 않음 |
 
 Core 변경은 JDK 21·전체 Gradle 테스트, 영속성 변경은 실제 MySQL 8.4 Testcontainers, AI는 전체 pytest, 프론트는 test/lint/build를 따른다. 계약 변경은 생산자·소비자 양쪽을 검증한다. 무료 스텁 검증은 실제 AI 품질·실제 유료 과금 검증이 아니다. 유료 평가는 입력과 호출 예산을 별도로 승인받는다.

@@ -4,7 +4,7 @@
 `local/operations-api`, `local/ops-mysql`은 격리된 kind 검증용이다.
 운영 클러스터·ECR 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
 
-애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz-web에서 관리한다.
+애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz에서 관리한다.
 향후 이 디렉터리는 승인된 각 환경의 원하는 실행 상태를 관리한다.
 
 ## 배포 설정에 기록할 것
@@ -27,7 +27,7 @@ smoke가 검증한 로컬 고유 이미지 태그로 교체하고 kind에 적재
 
 ## 변경 흐름과 안전장치
 
-1. GovBiz-web의 CI가 검증된 이미지를 발행한다.
+1. GovBiz의 CI가 검증된 이미지를 발행한다.
 2. 해당 서비스의 환경별 digest만 바꾸는 infra PR을 만든다.
 3. 구성 검증과 API·migration 호환성 검토 후 병합한다.
 4. Argo CD가 승인된 설정을 Kubernetes에 동기화한다. 자동 동기화 여부는 환경별 정책으로 정한다.
@@ -36,7 +36,7 @@ smoke가 검증한 로컬 고유 이미지 태그로 교체하고 kind에 적재
 이미지 되돌리기는 DB 데이터 되돌리기가 아니며, 파괴적 migration은 별도 승인·복구 절차가 필요하다.
 같은 환경·서비스를 수동 명령, SSM, Argo CD가 경쟁해서 변경하는 다중 배포 주체를 만들지 않는다.
 
-현재 EC2 운영 Compose·CodeBuild·SSM 설정은 GovBiz-web의 `infrastructure/`에 그대로 둔다.
+현재 EC2 운영 Compose·CodeBuild·SSM 설정은 GovBiz의 `infrastructure/`에 그대로 둔다.
 새 Kubernetes 경로의 검증과 운영 전환을 승인하기 전에는 이를 대체하거나 자동 실행하지 않는다.
 
 관련 문서: [로컬 검증](../docs/kubernetes-local.md), [Argo CD 도입 조건](../argocd/README.md), [전환 설계](../docs/msa-kubernetes-argocd-plan.md)
