@@ -1,248 +1,108 @@
 # GovBiz-infra
 
-GovBiz 서비스를 함께 실행하기 위한 **별도 인프라 저장소**입니다.
-애플리케이션 코드는 두 Git submodule에 있으며, 브랜치·PR·리뷰·CI는 각 서비스 저장소에서 독립적으로 관리합니다.
-기존 서비스의 `origin`은 `ilil1/SKN34-3rd-1Team` 포크를, 운영 관리 서비스의 `origin`은 팀 소유 저장소 `GovBiz-Team/GovBiz-ops`를 가리킵니다. 작업 브랜치와 PR은 각 서비스 저장소에서 관리합니다.
+GovBiz의 **환경별 배포 설정과 GitOps 전환 절차를 관리하는 저장소**입니다.
+애플리케이션 코드와 로컬 통합 실행은 [GovBiz-web](https://github.com/GovBiz-Team/GovBiz-web) 모노레포에서 관리합니다.
+기존 Django Ops 코드는 그 저장소의 `backend/ops/`로 통합하며, 이 저장소에서 애플리케이션 submodule을 관리하지 않습니다.
+
+## 현재 상태와 저장소 경계
 
 | 저장소 | 책임 |
 | --- | --- |
-| [SKN34-3rd-1Team](https://github.com/ilil1/SKN34-3rd-1Team) | React, Spring Boot, FastAPI AI 서비스와 기존 데이터 서비스 |
-| [GovBiz-ops](https://github.com/GovBiz-Team/GovBiz-ops) | LLMOps·관리자 시스템 개발용 저장소; 현재 Django 기본 골격과 전용 MySQL |
-| [GovBiz-infra](https://github.com/GovBiz-Team/GovBiz-infra) | 통합 Compose, 네트워크, 데이터 볼륨 연결, 사용할 서비스 커밋 |
+| [GovBiz-web](https://github.com/GovBiz-Team/GovBiz-web) | React·Core API·AI Service·Django Ops 코드, 테스트, Dockerfile, 로컬 Compose |
+| [GovBiz-infra](https://github.com/GovBiz-Team/GovBiz-infra) | 향후 Kubernetes 환경별 배포 상태, Argo CD 연결 정의, 전환·복구 절차 |
+| GovBiz-app — 향후 | React Native 클라이언트; 웹과 동일한 공개 백엔드 계약 사용 |
 
-현재 구성은 **로컬 개발용**입니다. 기존 AWS 배포 설정을 이전하거나 새 운영 배포를 수행하지 않습니다.
-GovBiz-ops는 Django 상태 확인 API까지 구현되어 있습니다. LLMOps·관리자 업무 기능과 기존 서비스의 업무·인증 API 연결은 앞으로 개발할 범위입니다.
+**현재 Kubernetes manifest, Argo CD Application, 클러스터 연결은 구현하지 않았습니다.**
+`argocd/`와 `environments/`에는 책임과 도입 조건을 설명하는 README만 있습니다.
+이 구조 정리를 Kubernetes 운영 배포 또는 GitOps 자동 배포 완료로 해석하지 않습니다.
 
-## MSA·Kubernetes·Argo CD 전환 계획
-
-[전환 설계](docs/msa-kubernetes-argocd-plan.md)에 현재 구조, 서비스 분리 후보, Kubernetes·Argo CD 도입 순서를 정리했습니다.
-현재는 설계 단계이며 Kubernetes 배포나 서비스 분리가 적용된 상태는 아닙니다.
+기존 EC2 Compose·CodeBuild·SSM 배포 코드는 당분간 GovBiz-web의 `infrastructure/`에 유지합니다.
+현재 AWS·Vercel의 source 연결, 서버 설정, DB, 이미지 버전은 이 작업으로 변경하지 않습니다.
+운영 환경은 아직 확정하지 않았으며 먼저 격리된 로컬 Kubernetes에서 검증할 계획입니다.
+프론트를 Vercel에 유지하면 해당 프론트 배포는 Argo CD의 관리 대상이 아닙니다.
 
 ## 구조
 
 ```text
-compose.yaml                 두 프로젝트를 하나의 Compose 프로젝트로 구성
-compose.django.yaml          Django 원본 Compose 재사용 및 이름 충돌 조정
-compose.existing-data.yaml   기존 로컬 데이터 볼륨을 재사용하는 선택 설정
-.env.example                 통합 환경 설정 예시
-services/
-  SKN34-3rd-1Team/            3차 저장소 submodule
-  GovBiz-ops/                LLMOps·관리자 시스템 저장소 submodule
-scripts/check-compose.py     비밀값·외부 API 없이 구성 검증 및 Django 통합 테스트
-.github/workflows/ci.yml      구성 검증·격리된 Django/MySQL 테스트
+GovBiz-infra/
+├─ argocd/
+│  └─ README.md               AppProject·Application 도입 조건
+├─ environments/
+│  └─ README.md               환경별 배포 상태·이미지 pin 관리 기준
+├─ docs/
+│  ├─ repository-transition.md 이전 개발 환경의 안전한 전환 절차
+│  ├─ msa-kubernetes-argocd-plan.md
+│  └─ msa-strategy-review-20260919.md
+├─ scripts/
+│  ├─ check_repository.py     저장소 경계·문서 링크 검증
+│  └─ test_check_repository.py
+└─ .github/workflows/ci.yml   저장소 경계·문서 검증
 ```
 
-3차 Compose는 `include`로 원래 빌드·마운트 경로를 보존합니다.
-Django는 원본 Compose의 `web`, `db`를 `extends`로 재사용하되,
-통합 환경에서는 `django-api`, `django-mysql`로 이름을 바꿉니다.
-Django 의존 대상·DB 주소·데이터 볼륨도 함께 변경하므로 React의 `web`이나 기존 MySQL과 충돌하지 않습니다.
+기존 로컬 `services/` 체크아웃은 작업·환경 파일을 잃지 않도록 디스크에 보존할 수 있지만,
+더 이상 이 저장소의 submodule이나 개발 소스 기준이 아닙니다.
+`services/`를 다시 `git add`하거나 submodule로 등록하지 않습니다.
+이전 실제 환경 파일과 미커밋 변경은 [전환 안내](docs/repository-transition.md)에 따라 직접 확인·보관합니다.
 
-운영 관리 저장소는 팀 소유의 `GovBiz-Team/GovBiz-ops`로 연결하며, 로컬 경로도 `services/GovBiz-ops`를 사용합니다.
-Django 코드와 고정 커밋은 유지하고 저장소 주소와 서브모듈 경로만 변경했습니다. DB·볼륨 이름은 변경하지 않습니다.
-기존 실행 설정과의 호환성을 위해 Compose 서비스 이름(`django-api`, `django-mysql`)과 환경변수 이름(`GOVBIZ_DJANGO_ENV_FILE`)도 유지합니다.
+## 개발은 어디에서 하나요?
 
-## 준비
+새 `GovBiz-web` 체크아웃에서 브랜치를 만들고 해당 저장소로 PR을 올립니다.
 
-- Git과 Docker Desktop의 Linux 컨테이너 엔진
-- Docker Compose 2.24.4 이상 (`include`, `!override` 사용)
-- 이 저장소와 각 submodule에 대한 읽기 권한. 작업 브랜치를 푸시하려면 해당 저장소의 쓰기 권한도 필요합니다.
-- 검증 스크립트를 직접 실행할 때는 Python 3.11 이상
+- React: `frontend/`
+- Core API: `backend/core-api/`
+- AI Service: `backend/ai-service/`
+- Django Ops: `backend/ops/`
+- 로컬 통합 실행: 루트 `compose.yaml`, `compose.ops.yaml`, `compose.existing-data.yaml`
+- 로컬 구성 검증: `scripts/check-compose.py`
+
+Ops를 모노레포에 넣는 것은 소스 관리 단위를 합치는 작업입니다.
+Django와 Core의 실행 프로세스, 데이터 소유권, 인증 책임을 합치지 않습니다.
+Ops는 아직 상태 확인 API와 전용 MySQL을 가진 골격이며, Core 기반 관리자 인증과 실제 운영 업무는 후속 구현입니다.
+
+**이 저장소에서 `docker compose up`을 실행하지 않습니다.**
+GovBiz-web의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼저
+[환경 파일·볼륨 전환 절차](docs/repository-transition.md)를 확인합니다.
+
+기존 공개 GovBiz-ops 저장소는 삭제하거나 보관 처리하지 않습니다.
+가져온 코드의 출처와 기준 커밋은 전환 문서에 남기고, Git 이력 전체를 합쳤다고 표시하지 않습니다.
+
+## 목표 배포 흐름 — 아직 연결하지 않음
+
+1. GovBiz-web PR에서 해당 서비스와 공개 계약의 테스트를 수행합니다.
+2. 신뢰된 릴리스 CI가 이미지를 빌드하여 ECR에 올립니다.
+3. CI가 GovBiz-infra에 해당 환경의 이미지 digest 변경 PR을 만듭니다.
+4. 검토·병합된 배포 설정을 Argo CD가 지정 Kubernetes 클러스터에 동기화합니다.
+
+이미지 빌드는 CI, 이미지 보관은 ECR, 사용할 버전 선택은 infra PR,
+실제 Kubernetes 상태 동기화는 Argo CD의 책임입니다.
+ECR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 자동 완료되지는 않습니다.
+자동 PR 생성, Argo CD 연결, 자동 동기화 정책은 별도로 구현·검증해야 합니다.
+
+처음에는 로컬 검증과 명시적 동기화를 사용하며, 운영 자동 동기화 여부는 대상·권한·복구 절차를 확정한 뒤 결정합니다.
+같은 환경·서비스를 기존 SSM 배포와 Argo CD가 동시에 변경하지 않도록 전환 시 배포 주체를 하나로 정합니다.
+
+## 비밀값과 변경 승인
+
+- 토큰, API 키, DB 비밀번호, 실제 `.env`, kubeconfig를 커밋하지 않습니다.
+- Kubernetes Secret의 단순 base64 인코딩을 암호화로 취급하지 않습니다.
+- 환경별 설정은 비밀값 대신 선택한 비밀 저장소의 참조를 사용하도록 설계합니다. 공급자는 아직 결정하지 않았습니다.
+- 이미지 교체 롤백과 DB migration·데이터 복구는 별개입니다. 이미지 버전만 되돌려 데이터 복구까지 됐다고 판단하지 않습니다.
+- 현재 앱 저장소에 있는 운영 Compose와 여기에 추가할 Kubernetes 설정이 같은 운영 대상의 두 기준이 되지 않도록 합니다.
+
+## 다음 단계와 검증
+
+[MSA·Kubernetes·Argo CD 전환 설계](docs/msa-kubernetes-argocd-plan.md)와
+[코드 기반 전략 검토](docs/msa-strategy-review-20260919.md)에 단계별 통과 조건을 정리했습니다.
+
+현재 infra CI는 애플리케이션 소스·submodule·로컬 Compose가 되돌아오지 않는지와 문서 경계를 검증합니다.
+서비스 테스트와 통합 Compose 검증은 GovBiz-web CI의 책임입니다.
+infra CI 통과를 Kubernetes 배포, 관리자 인증, 전체 업무 연동, 실제 RAG 품질 검증으로 표시하지 않습니다.
 
 ```bash
-git clone --recurse-submodules https://github.com/GovBiz-Team/GovBiz-infra.git
-cd GovBiz-infra
-```
-
-이미 복제했다면 `git submodule sync --recursive`로 `.gitmodules`의 원격 주소를 로컬에 반영한 뒤, `git submodule update --init --recursive`로 기록된 커밋을 받습니다.
-일반 실행에서는 `git submodule update --remote`를 사용하지 않습니다.
-인프라 커밋에 기록된 서비스 버전을 사용해야 팀원들이 같은 구성을 재현할 수 있습니다.
-
-이전 `services/SKN34-4th-1Team` 경로에서 작업했다면 변경사항을 먼저 커밋하거나 보관하고, 실제 `.env`도 별도로 보관합니다.
-새 서브모듈 초기화 후 기존 `.env`를 `services/GovBiz-ops/.env`로 복사합니다. 기존 비밀값을 예시 값으로 덮어쓰지 않습니다.
-루트 `.env`에 이전 `GOVBIZ_DJANGO_ENV_FILE` 경로를 지정했다면 `./services/GovBiz-ops/.env`로 갱신합니다.
-
-## 처음 실행하는 PC
-
-PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-Copy-Item services/SKN34-3rd-1Team/.env.example services/SKN34-3rd-1Team/.env
-Copy-Item services/GovBiz-ops/.env.example services/GovBiz-ops/.env
-```
-
-Linux/macOS에서는 `Copy-Item` 대신 `cp`를 사용합니다.
-이미 설정 파일이 있으면 덮어쓰지 않습니다.
-
-3차 `.env`에 필수 `OPENAI_API_KEY`와 사용할 공고 API 설정을 입력합니다.
-실제 서비스의 수집·임베딩·AI 기능을 켜면 해당 외부 API를 사용합니다.
-새 환경에서 자동 적재를 원하지 않으면 3차 `.env`의
-`BIZINFO_SYNC_ENABLED`, `KSTARTUP_SYNC_ENABLED`, `MSIT_SYNC_ENABLED`,
-`CNTRADE_NOTICE_SYNC_ENABLED`, `SUPPORT_PROGRAM_INDEX_ENABLED`, `DEMO_SEED_ENABLED`를
-`false`로 설정합니다. 통합 저장소가 이 업무 설정을 임의로 변경하지 않습니다.
-
-```bash
-docker compose config --quiet
-docker compose up -d --build
-docker compose ps
-```
-
-검증 결과에 비밀값을 노출하지 않도록 일반 설정 확인은 `config --quiet`를 사용합니다.
-
-## 환경변수 분리
-
-| 파일 | 용도 |
-| --- | --- |
-| 루트 `.env` | `COMPOSE_*`, `GOVBIZ_*` 통합 설정 |
-| `services/SKN34-3rd-1Team/.env` | OpenAI·공고 API 키, 기존 DB와 서비스 설정 |
-| `services/GovBiz-ops/.env` | Django 키, 전용 MySQL 비밀번호와 포트 |
-
-모든 실제 `.env`는 Git에서 제외합니다.
-루트 `.env`나 셸에 `MYSQL_ROOT_PASSWORD`, `DB_PASSWORD` 같은 서비스 비밀값을 공통으로 넣지 않습니다.
-Compose의 상위 환경변수가 포함된 파일의 환경변수보다 우선하므로 다른 서비스의 값을 덮어쓸 수 있습니다.
-`GOVBIZ_APP_ENV_FILE`, `GOVBIZ_DJANGO_ENV_FILE`로 별도 설정 파일을 지정할 수도 있습니다.
-
-## 접속과 통신
-
-| 서비스 | 호스트 기본 주소 | 컨테이너 사이 주소 |
-| --- | --- | --- |
-| React | http://127.0.0.1:5173 | `http://web:5173` |
-| Spring Boot | http://127.0.0.1:8080 | `http://core-api:8080` |
-| FastAPI AI | 호스트에 공개하지 않음 | `http://ai-service:8000` |
-| Django | http://127.0.0.1:8001/api/v1/health/ready | `http://django-api:8000` |
-| 기존 MySQL | `127.0.0.1:3306` | `mysql:3306` |
-| Django MySQL | `127.0.0.1:3308` | `django-mysql:3306` |
-| Qdrant | http://127.0.0.1:6333 | `http://qdrant:6333` |
-
-기존 MySQL 호스트 포트는 3차 `.env`의 `MYSQL_HOST_PORT`를 따릅니다. 기존 PC에서 3307을 썼다면 그대로 유지합니다.
-모든 호스트 포트는 `127.0.0.1`에만 바인딩합니다.
-한 Compose 프로젝트의 기본 네트워크를 공유하지만 두 MySQL의 DB·계정·볼륨은 별개입니다.
-Django의 허용 호스트에는 통합 서비스 이름 `django-api`를 추가합니다.
-React의 기존 API 프록시는 Core API를 계속 가리킵니다.
-
-## 기존 PC의 데이터 유지
-
-기존 `govbiz`, `govbiz4-django` 프로젝트에서 전환할 때 사용하는 설정입니다.
-동일한 데이터 볼륨을 두 DB 컨테이너에서 동시에 사용하면 안 됩니다.
-
-1. 기존 두 프로젝트의 `.env`를 해당 submodule의 `.env`로 복사합니다. 예시 파일의 비밀번호로 바꾸지 않습니다.
-2. `docker volume ls`에서 기존 볼륨을 확인합니다. 아래 기본 이름과 다르면 루트 `.env`의 `GOVBIZ_EXISTING_*` 값을 설정합니다.
-3. 루트 `.env`에 다음 두 줄을 추가합니다.
-
-```dotenv
-COMPOSE_PATH_SEPARATOR=|
-COMPOSE_FILE=compose.yaml|compose.existing-data.yaml
-```
-
-| 용도 | 기존 볼륨 기본값 |
-| --- | --- |
-| 기존 MySQL | `govbiz_mysql-data` |
-| Elasticsearch | `govbiz_elasticsearch-data` |
-| Qdrant | `govbiz_qdrant-data` |
-| Redis | `govbiz_redis-data` |
-| RabbitMQ | `govbiz_rabbitmq-data` |
-| React node_modules | `govbiz_web-node-modules` |
-| Django MySQL | `govbiz4-django_mysql-data` |
-
-재사용 설정은 `external: true`여서 볼륨이 없으면 실행에 실패합니다.
-새 빈 볼륨을 만들고 기존 데이터가 없는 것처럼 실행하지 않습니다.
-변수 전체 이름은 `compose.existing-data.yaml`에 있습니다.
-
-4. **기존 두 프로젝트의 원래 폴더에서**, 기존 실행에 사용했던 설정으로 컨테이너를 종료합니다. 아래는 기본 프로젝트 이름으로 실행했을 때의 명령입니다.
-
-```powershell
-# 기존 SKN34-3rd-1Team 폴더
-docker compose --project-name govbiz --env-file .env -f infrastructure/compose.yaml down
-
-# 기존 SKN34-4th-1Team 폴더
-docker compose --project-name govbiz4-django --env-file .env -f compose.yaml down
-```
-
-`down`에 `-v` 또는 `--volumes`를 추가하지 않습니다. 데이터 볼륨을 삭제하는 옵션입니다.
-호스트 포트만 바꿔서 기존 DB와 새 DB를 같은 데이터 볼륨으로 동시에 실행하지 않습니다.
-
-5. `GovBiz-infra` 폴더에서 실행합니다.
-
-```bash
-docker compose config --quiet
-docker compose up -d --build
-docker compose ps
-```
-
-전환하면 개발 소스 마운트도 `GovBiz-infra/services/` 아래 체크아웃으로 바뀝니다.
-원래 형제 폴더의 소스를 편집해도 통합 컨테이너에 자동 반영되지 않습니다.
-통합 환경에서는 해당 submodule 안에서 작업 브랜치를 만들거나, 변경을 서비스 원격에 푸시한 뒤 submodule을 갱신합니다.
-
-원래 개발 환경으로 돌아갈 때는 통합 환경에서 먼저 `docker compose down`을 실행한 뒤 원래 두 폴더에서 실행합니다.
-기존 데이터 재사용 설정을 매번 유지해야 같은 볼륨을 사용합니다.
-
-## 일상 명령
-
-```bash
-docker compose up -d --build
-docker compose logs -f django-api
-docker compose logs -f core-api
-docker compose exec -T django-api python manage.py test --noinput
-docker compose down
-```
-
-서비스 코드 변경 후에는 해당 서비스만 `docker compose up -d --build django-api`처럼 다시 빌드할 수 있습니다.
-Django 테스트는 별도 `test_govbiz4` DB를 생성·삭제합니다.
-
-## 개발과 PR
-
-서비스 코드는 해당 저장소에서 개발하고 그 저장소에 PR을 올립니다.
-submodule은 기본적으로 특정 커밋을 checkout한 상태이므로, 수정 전에 작업 브랜치를 만듭니다.
-
-```bash
-git -C services/GovBiz-ops switch -c feature/my-ops-change
-# 코드 수정·검증·커밋 후 해당 저장소에 push하고 PR 생성
-git -C services/GovBiz-ops push -u origin feature/my-ops-change
-```
-
-LLMOps·관리자 시스템 작업의 PR 대상은 `GovBiz-Team/GovBiz-ops`이며, 기존 개인 포크에는 푸시하지 않습니다.
-
-서비스 PR이 병합되면 인프라 저장소의 별도 브랜치에서 사용할 커밋을 명시적으로 갱신합니다.
-
-```bash
-git switch -c chore/update-ops-version
-git -C services/GovBiz-ops fetch origin
-git -C services/GovBiz-ops checkout --detach <사용할-커밋-SHA>
-python scripts/check-compose.py --smoke
-git add services/GovBiz-ops
-git commit -m "통합 환경의 운영 관리 서비스 버전 갱신"
-git push -u origin chore/update-ops-version
-```
-
-이 PR은 `GovBiz-infra`에 올립니다.
-팀원이 인프라 변경을 받을 때는 다음 명령을 사용합니다. 로컬 변경이 있다면 먼저 커밋하거나 보관합니다.
-
-```bash
-git pull
-git submodule sync --recursive
-git submodule update --init --recursive
-```
-
-## 검증과 CI
-
-```bash
-# Docker 엔진 없이 Compose 모델만 검증
-python scripts/check-compose.py
-
-# 임시 프로젝트에서 Django 이미지를 빌드하고 실제 MySQL 테스트 실행
-python scripts/check-compose.py --smoke
+python3 -B scripts/check_repository.py
+python3 -B -m unittest discover -s scripts -p 'test_*.py'
 git diff --check
 ```
 
-검증 스크립트는 임시 환경변수 파일과 서로 다른 테스트 비밀번호로 서비스 간 설정이 섞이지 않는지 확인합니다.
-소스·Dockerfile·초기화 SQL 경로, 서비스 의존 관계, 호스트 공개 범위, 데이터 볼륨 분리,
-기존 데이터 재사용 매핑도 검사합니다.
-
-`--smoke`는 무작위 이름의 격리된 프로젝트·볼륨·빈 호스트 포트를 사용합니다.
-Django/MySQL만 실행하며 실제 MySQL 테스트, 호스트 HTTP 요청, 컨테이너 간 Django DNS 요청을 확인합니다.
-끝나면 **검증용 프로젝트의 컨테이너와 볼륨만** 정리합니다.
-기존 개발 데이터, 실제 API 키, 공고 수집·임베딩·유료 AI API는 사용하지 않습니다.
-
-CI는 동일한 구성 검증과 Django 통합 테스트를 수행합니다.
-3차 서비스 전체 빌드·업무 테스트는 3차 저장소 CI가 담당합니다.
-이 검증 통과를 전체 서비스 업무 연동 또는 실제 검색·RAG 품질 검증으로 간주하지 않습니다.
+문서만 바뀐 경우 링크·경로를 확인하고 `git diff --check`를 실행합니다.
+실제 manifests를 도입하면 렌더링·스키마·정책 검증과 격리 클러스터 동기화·복구 검증을 별도 CI에 추가해야 합니다.
