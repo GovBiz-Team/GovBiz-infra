@@ -20,7 +20,7 @@
 - [통합 Compose](../compose.yaml), [Django 연결](../compose.django.yaml)
 - [운영 Compose](../services/SKN34-3rd-1Team/infrastructure/compose.prod.yaml)
 - [CodeBuild 설정](../services/SKN34-3rd-1Team/infrastructure/codebuild/backend.yml), [릴리스 실행](../services/SKN34-3rd-1Team/infrastructure/codebuild/release.py)
-- [Django Dockerfile](../services/SKN34-4th-1Team/Dockerfile), [Django 설정](../services/SKN34-4th-1Team/config/settings.py)
+- [Django Dockerfile](../services/GovBiz-ops/Dockerfile), [Django 설정](../services/GovBiz-ops/config/settings.py)
 
 Kubernetes는 컨테이너의 실행·복구·확장을 관리하고, Argo CD는 Git에 기록된 배포 설정을 클러스터에 반영한다.
 MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤트 계약, 독립 배포를 만드는 작업이다.
@@ -33,7 +33,7 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 | 배포 단위 | 담당할 책임 | 진행 방식 |
 | --- | --- | --- |
 | core-api | 계정·기업·세션과 아직 분리하지 않은 사용자 업무 | 초기에는 기존 기능 유지; 추출된 기능은 API·이벤트로 연동 |
-| operations-api | Django 기반 운영 관리·검토 업무와 자체 운영 기록 | 4차 저장소에서 구현; 기존 Core 관리자 API는 필요한 범위에서 재사용 |
+| operations-api | Django 기반 LLMOps·관리자 업무와 자체 운영 기록 | GovBiz-ops 저장소에서 구현; 기존 Core 관리자 API는 필요한 범위에서 재사용 |
 | ai-service | LLM·임베딩·RAG·문서 분석 실행 | 기존 FastAPI 유지; 외부 사용자에게 내부 API를 직접 공개하지 않음 |
 | catalog-service | 공고 수집·정규화·조회·검색 흐름과 공고 데이터 | 첫 Core 분리 후보; 기존 Spring 구현을 기반으로 경계 분리 |
 | application-service | 신청 준비·문서 작업·중복 지원 검토와 작업 상태 | 공고·계정 계약 정리 후 분리 후보 |
@@ -70,7 +70,7 @@ GovBiz-infra/
 ├─ compose.django.yaml
 ├─ services/                       개발·통합 검증용 submodule
 │  ├─ SKN34-3rd-1Team/
-│  └─ SKN34-4th-1Team/
+│  └─ GovBiz-ops/
 ├─ kubernetes/
 │  ├─ services/
 │  │  ├─ core-api/

@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "services" / "SKN34-3rd-1Team"
-DJANGO = ROOT / "services" / "SKN34-4th-1Team"
+DJANGO = ROOT / "services" / "GovBiz-ops"
 EXISTING_VOLUMES = {
     "elasticsearch-data": "govbiz_elasticsearch-data",
     "rabbitmq-data": "govbiz_rabbitmq-data",

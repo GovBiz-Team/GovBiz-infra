@@ -2,10 +2,10 @@
 services:
   django-api:
     extends:
-      file: ./services/SKN34-4th-1Team/compose.yaml
+      file: ./services/GovBiz-ops/compose.yaml
       service: web
     env_file: !override
-      - ${GOVBIZ_DJANGO_ENV_FILE:-./services/SKN34-4th-1Team/.env}
+      - ${GOVBIZ_DJANGO_ENV_FILE:-./services/GovBiz-ops/.env}
     environment:
       DB_HOST: django-mysql
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1},django-api
@@ -15,7 +15,7 @@ services:
 
   django-mysql:
     extends:
-      file: ./services/SKN34-4th-1Team/compose.yaml
+      file: ./services/GovBiz-ops/compose.yaml
       service: db
     volumes:
       # 동일한 /var/lib/mysql 대상만 교체하여 원본 초기화 SQL 마운트는 유지합니다.

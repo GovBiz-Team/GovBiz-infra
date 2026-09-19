@@ -5,4 +5,4 @@ include:
   - path: ./services/SKN34-3rd-1Team/infrastructure/compose.yaml
     env_file: ${GOVBIZ_APP_ENV_FILE:-./services/SKN34-3rd-1Team/.env}
   - path: ./compose.django.yaml
-    env_file: ${GOVBIZ_DJANGO_ENV_FILE:-./services/SKN34-4th-1Team/.env}
+    env_file: ${GOVBIZ_DJANGO_ENV_FILE:-./services/GovBiz-ops/.env}
