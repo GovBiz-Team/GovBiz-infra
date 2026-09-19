@@ -156,7 +156,7 @@ GovBiz-infra/
 - `ai-service`: `backend/ai-service/`
 - `ops-service` (Django): `backend/ops-service/`
 - 로컬 통합 실행: 루트 `compose.yaml`, `compose.ops.yaml`, `compose.existing-data.yaml`
-- 로컬 구성 검증: `scripts/check-compose.py`
+- 로컬 구성 검증: `infrastructure/scripts/check-compose.py`
 
 **이 저장소에서 `docker compose up`을 실행하지 않습니다.**
 GovBiz의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼저

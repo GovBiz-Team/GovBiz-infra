@@ -38,7 +38,7 @@ skn34_project/
 │  ├─ compose.ops.yaml
 │  ├─ compose.existing-data.yaml
 │  ├─ .env.compose.example       통합 실행 설정 예시
-│  └─ scripts/check-compose.py
+│  └─ infrastructure/scripts/check-compose.py
 └─ GovBiz-infra/                 배포 설정·전환 문서
    └─ services/                 기존 로컬 체크아웃 보존용; 추적·개발 기준 아님
 ```

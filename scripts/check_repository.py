@@ -23,6 +23,7 @@ MOVED = (
     "compose.django.yaml",
     "compose.existing-data.yaml",
     "scripts/check-compose.py",
+    "infrastructure/scripts/check-compose.py",
 )
 
 

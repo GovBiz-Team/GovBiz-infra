@@ -41,6 +41,19 @@ class RepositoryBoundaryTests(unittest.TestCase):
             (root / "compose.yaml").write_text("services: {}\n", encoding="utf-8")
             self.assertEqual(len(file_errors(root)), 1)
 
+    def test_application_compose_checker_is_rejected_at_old_and_current_paths(self):
+        for name in ("scripts/check-compose.py", "infrastructure/scripts/check-compose.py"):
+            with self.subTest(path=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_repository(root)
+                checker = root / name
+                checker.parent.mkdir(parents=True, exist_ok=True)
+                checker.write_text("# Application checker\n", encoding="utf-8")
+                self.assertEqual(
+                    file_errors(root),
+                    [f"Local application configuration belongs in GovBiz: {name}"],
+                )
+
     def test_missing_guides_and_invalid_links_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
