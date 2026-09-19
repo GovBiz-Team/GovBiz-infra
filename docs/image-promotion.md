@@ -4,6 +4,12 @@ GovBiz의 이미지 발행 CI는 서비스별 GHCR 이미지 digest와 JSON rece
 [앱 릴리스 안내](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/msa-image-release.md)를 따른다.
 발행 CI의 활성화·공개 상태는 앱 릴리스 안내를 따른다. 상시 환경에는 아직 연결하지 않았다.
 
+2026-09-20 KST 기준 네 서비스의 [최초 GHCR 발행](https://github.com/GovBiz-Team/GovBiz/actions/runs/35457860821)이
+성공했다. 최초 공개 후 사용자 결정에 따라 삭제·재발행 없이 네 패키지를 **비공개**로 전환했고,
+익명 접근은 모두 HTTP 401로 거절됨을 확인했다. 자동 발행은 `MSA_RELEASE_ENABLED=false`로 중지했으며
+조직의 공개 패키지 생성 허용도 껐다. 비공개 전환 후 인증된 전체 pull·클러스터 배포는 아직 검증하지 않았다.
+아래 도구는 대상 환경과 pull 인증을 별도로 준비한 뒤 사용한다.
+
 이 저장소는 **배포할 버전 선택**을 담당한다. `scripts/promote_image.py`는 검토한 receipt에서
 기존 비로컬 환경의 서비스 이미지 digest만 갱신한다. Git commit/push, AWS 인증, kubectl,
 Argo sync를 자동 실행하지 않는다. cross-repository 자동 쓰기 권한도 아직 연결하지 않았다.
@@ -51,7 +57,8 @@ python -B -m unittest discover -s scripts -p 'test_promote_image.py'
 거절하고, 기본 미리보기의 무변경·선택 digest만 적용·동일 이미지 재적용의 무변경을 검증한다.
 실제 GHCR 인증·이미지 pull·상시 Argo 클러스터는 이 테스트 범위가 아니다.
 
-사용자 선택은 공개 패키지다. 비공개 패키지를 사용하는 환경은 별도의 읽기 전용 인증을
+현재 사용자 선택은 비공개 패키지다. 배포 환경은 별도의 읽기 전용 인증을
 같은 namespace의 `kubernetes.io/dockerconfigjson` Secret으로 주입하고, Helm 값에는
 `imagePullSecrets: [{name: ghcr-pull}]`처럼 이름만 기록한다. Secret 값은 Git/values에 넣지 않는다.
-공개 패키지는 이 목록을 기본값 `[]`로 유지한다.
+현재 local-msa 검증 환경은 로컬 로드 이미지를 사용하므로 이 목록의 기본값 `[]`를 유지한다.
+향후 GHCR 비공개 이미지를 쓰는 환경에는 실제 Secret을 준비하고 참조를 설정해야 한다.
