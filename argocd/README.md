@@ -2,7 +2,10 @@
 
 상태: **로컬용 Application 4개와 AppProject 정의를 구현했다.** `local/`에서
 Core·Catalog·AI·Ops의 Helm 배포를 별도로 관리한다. 최초 sync는 수동이며 운영에 연결하지 않는다.
-실제 설치·Git 동기화 결과는 실행 보고서와 구분한다. [로컬 MSA 실행](../docs/msa-local.md)을 따른다.
+Argo CD Core 3.5.3을 임시 kind에 설치해 원격 Git A → B → A 동기화와 AI만의 Pod 교체·복귀를
+검증했다. [실행 기록](../docs/msa-validation-20260920.md)과 [실행 방법](../docs/msa-local.md)을 따른다.
+Core 설치는 웹 UI 없이 동기화 엔진을 검증하는 방식이다. 테스트 중에만 자동 동기화를 켰으며,
+체크인된 Application의 최초 sync는 계속 수동이다. 상시 클러스터나 운영 자동 배포가 생긴 것은 아니다.
 
 ## 이 디렉터리에 들어갈 내용
 

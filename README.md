@@ -1,6 +1,6 @@
 # GovBiz-infra
 
-GovBiz의 **Kubernetes 배포 설정, 검증 도구, 향후 GitOps 전환·복구 절차를 관리하는 저장소**입니다.
+GovBiz의 **Kubernetes 배포 설정, 로컬 GitOps 검증과 운영 전환·복구 절차를 관리하는 저장소**입니다.
 애플리케이션 코드와 Docker 이미지 빌드는 [GovBiz](https://github.com/GovBiz-Team/GovBiz)
 모노레포에서 관리합니다. Django 기반 `ops-service`도 그 저장소의 `backend/ops-service/`에서 개발하며,
 이 저장소에는 애플리케이션 소스나 submodule을 두지 않습니다.
@@ -23,7 +23,7 @@ Kubernetes를 포트폴리오의 필수 목표로 두고, 기존 Ops Kustomize �
 | 운영 환경 | 현재 운영 환경 없음. EC2 Compose·CodeBuild·SSM 설정은 앱 저장소의 재배포용 템플릿이며 자동 실행하지 않음 |
 | 로컬 Kubernetes | Core·Catalog·AI·Ops 및 전용 DB를 kind에서 실행. HTTP 복제·DB 접근 거절·AI 단독 설정 롤아웃·Catalog 장애·Ops 테스트 데이터 복구 검증 완료 |
 | 서비스 경계 | Catalog 원본 DB와 Core 조회용 복제본, Ops DB를 분리. 루트 Compose와 로컬 Kubernetes에 적용했으며 AWS 운영에는 반영하지 않음 |
-| Helm·Argo CD | 서비스별 Helm 값·Application 4개·권한 제한 AppProject·오프라인 CI 구현. 실제 실행 결과는 별도 보고서 기준 |
+| Helm·Argo CD | 네 Application의 원격 Git 동기화 및 AI만의 자동 설정 변경·복귀를 Argo CD Core에서 검증. 상시 운영 클러스터는 없음 |
 | 아직 미구현 | Ops 관리자 인증·LLMOps 업무, 전체 내부 인증·NetworkPolicy 집행, 이미지 발행 CI와 상시 클러스터 연결, AWS Kubernetes 운영 전환 |
 
 검증용 클러스터는 테스트 후 삭제합니다. **현재 Kubernetes가 운영 서비스를 계속 실행하고 있다는 뜻은 아닙니다.**
@@ -111,6 +111,7 @@ smoke는 임의 이름의 **새 kind 클러스터만** 생성하고 기존 kubec
 교차 DB 인증 거절, AI만의 설정 롤아웃·복귀, Catalog 중단 시 조회 유지,
 Ops 테스트 테이블 dump·복원과 DB Pod 재생성 후 PVC 유지까지 통과했습니다.
 Infra 단위 테스트 50개·Helm strict lint·정적 정책 검사도 통과했습니다.
+Argo CD Core 3.5.3에서도 원격 Git의 A → B → A 자동 동기화와 AI만의 Pod 교체를 확인했습니다.
 범위와 미검증 항목은 [최신 검증 기록](docs/msa-validation-20260920.md)을 따릅니다.
 
 ### 이전 Ops 단독 검증
@@ -191,7 +192,7 @@ GovBiz의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼�
 기존 공개 GovBiz-ops 저장소는 삭제하거나 보관 처리하지 않습니다.
 가져온 코드의 출처와 기준 커밋은 전환 문서에 남기고, Git 이력 전체를 합쳤다고 표시하지 않습니다.
 
-## 목표 배포 흐름 — 아직 연결하지 않음
+## 목표 상시 배포 흐름 — 이미지 CI·운영 클러스터 미연결
 
 1. GovBiz PR에서 해당 서비스와 공개 계약의 테스트를 수행합니다.
 2. 신뢰된 릴리스 CI가 이미지를 빌드하여 ECR에 올립니다.
@@ -201,7 +202,8 @@ GovBiz의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼�
 이미지 빌드는 CI, 이미지 보관은 ECR, 사용할 버전 선택은 infra PR,
 실제 Kubernetes 상태 동기화는 Argo CD의 책임입니다.
 ECR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 자동 완료되지는 않습니다.
-자동 PR 생성, Argo CD 연결, 자동 동기화 정책은 별도로 구현·검증해야 합니다.
+로컬 Argo CD의 Git 동기화·복귀는 검증했습니다. 자동 이미지 발행·digest 변경 PR 생성과
+상시 클러스터 연결은 아직 구현·검증해야 합니다.
 
 처음에는 로컬 검증과 명시적 동기화를 사용하며, 운영 자동 동기화 여부는 대상·권한·복구 절차를 확정한 뒤 결정합니다.
 같은 환경·서비스를 기존 SSM 배포와 Argo CD가 동시에 변경하지 않도록 전환 시 배포 주체를 하나로 정합니다.
@@ -216,11 +218,10 @@ ECR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 
 
 ## 다음 단계
 
-1. 로컬 검증을 통과한 Git revision으로 네 Argo Application의 실제 동기화·AI 단독 복귀를 검증합니다.
-2. `core-service`의 관리자 판정 계약에 맞춰 `ops-service` 인증과 업무 API를 구현합니다.
-3. NetworkPolicy 집행, Core·AI 의존성 readiness, 장기 작업 종료·중복 실행 방지를 검증합니다.
-4. 독립 이미지 발행 CI·digest 갱신과 상시 GitOps 환경을 연결합니다.
-5. 운영 방식·비용·TLS·IAM·비밀값·백업을 확정하고 승인받은 뒤 AWS 환경을 구성합니다.
+1. `core-service`의 관리자 판정 계약에 맞춰 `ops-service` 인증과 업무 API를 구현합니다.
+2. NetworkPolicy 집행, Core·AI 의존성 readiness, 장기 작업 종료·중복 실행 방지를 검증합니다.
+3. 독립 이미지 발행 CI·digest 갱신과 상시 GitOps 환경을 연결합니다.
+4. 운영 방식·비용·TLS·IAM·비밀값·백업을 확정하고 승인받은 뒤 AWS 환경을 구성합니다.
 
 [MSA·Kubernetes·Argo CD 전환 설계](docs/msa-kubernetes-argocd-plan.md)와
 [코드 기반 전략 검토](docs/msa-strategy-review-20260919.md)에 단계별 통과 조건을 정리했습니다.
