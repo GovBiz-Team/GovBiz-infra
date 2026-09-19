@@ -13,18 +13,22 @@ AWS·Vercel 배포 연결이 이전되지는 않습니다.
 
 아래 상태는 저장소의 구현과 보존된 검증 기록을 기준으로 합니다. 실시간 AWS 상태를 재조회한 결과는 아닙니다.
 
-Kubernetes를 포트폴리오의 필수 목표로 두고, **`ops-service` + 검증용 MySQL의 로컬 Kubernetes 실행과
-장애·복구 검증까지 완료**했습니다. 전체 MSA 또는 AWS Kubernetes 운영 전환이 완료된 상태는 아닙니다.
+Kubernetes를 포트폴리오의 필수 목표로 두고, 기존 Ops Kustomize 검증에 이어
+**Core·Catalog·AI·Ops의 독립 Helm 배포와 로컬 Argo CD 정의**를 추가했습니다.
+전체 MSA 업무 분리 또는 AWS 운영 전환이 완료된 상태는 아닙니다.
+새 실행 방법·검증 범위·남은 과제는 [로컬 MSA·Helm·GitOps 안내](docs/msa-local.md)를 따릅니다.
 
 | 구분 | 현재 상태 |
 | --- | --- |
 | 운영 환경 | 현재 운영 환경 없음. EC2 Compose·CodeBuild·SSM 설정은 앱 저장소의 재배포용 템플릿이며 자동 실행하지 않음 |
-| 로컬 Kubernetes | Gunicorn으로 실행하는 `ops-service`와 MySQL 8.4를 격리된 kind 클러스터에 배포해 실제 실행·장애·복구·이미지 롤백 검증 완료 |
-| 서비스 경계 | `core-service`·`catalog-service`·`ai-service`·`ops-service`를 구분. `catalog-service`는 앱 저장소에서 독립 프로세스·DB와 `core-service` HTTP 연동을 로컬 검증했고, Kubernetes·AWS 운영에는 아직 반영하지 않음 |
-| 아직 미구현 | Argo CD 연결, `core-service`·`catalog-service`·`ai-service`의 Kubernetes 이전, `ops-service` 관리자 인증·LLMOps 업무 기능, AWS Kubernetes 운영 전환 |
+| 로컬 Kubernetes | Core·Catalog·AI·Ops 및 전용 DB를 kind에서 실행. HTTP 복제·DB 접근 거절·AI 단독 설정 롤아웃·Catalog 장애·Ops 테스트 데이터 복구 검증 완료 |
+| 서비스 경계 | Catalog 원본 DB와 Core 조회용 복제본, Ops DB를 분리. 루트 Compose와 로컬 Kubernetes에 적용했으며 AWS 운영에는 반영하지 않음 |
+| Helm·Argo CD | 서비스별 Helm 값·Application 4개·권한 제한 AppProject·오프라인 CI 구현. 실제 실행 결과는 별도 보고서 기준 |
+| 아직 미구현 | Ops 관리자 인증·LLMOps 업무, 전체 내부 인증·NetworkPolicy 집행, 이미지 발행 CI와 상시 클러스터 연결, AWS Kubernetes 운영 전환 |
 
 검증용 클러스터는 테스트 후 삭제합니다. **현재 Kubernetes가 운영 서비스를 계속 실행하고 있다는 뜻은 아닙니다.**
-자세한 결과는 [2026-09-19 실제 검증 기록](docs/kubernetes-validation-20260919.md)에서 확인할 수 있습니다.
+최신 결과는 [2026-09-20 네 서비스 검증 기록](docs/msa-validation-20260920.md),
+이전 Ops 단독 결과는 [2026-09-19 검증 기록](docs/kubernetes-validation-20260919.md)에서 확인할 수 있습니다.
 
 ## 저장소와 서비스 책임
 
@@ -41,7 +45,7 @@ React Native 앱은 `GovBiz/frontend/mobile/`에서 웹과 함께 관리하며,
 | 현재 서비스명 | GovBiz 소스 경로 | 책임과 구현 범위 |
 | --- | --- | --- |
 | `core-service` | [`backend/core-service/`](https://github.com/GovBiz-Team/GovBiz/tree/develop/backend/core-service) | 사용자 인증·권한, 기업·관심 공고·파트너·신청 등 사용자 업무와 공개 검색 API. 공고 분리 모드에서는 조회용 복제본을 유지 |
-| `catalog-service` | [`backend/catalog-service/`](https://github.com/GovBiz-Team/GovBiz/tree/develop/backend/catalog-service) | 선택형 분리 모드의 공고 수집·정규화·게시·검색 색인과 독립 원본 DB. 로컬 분리 검증 완료, Kubernetes·기존 AWS에는 미반영 |
+| `catalog-service` | [`backend/catalog-service/`](https://github.com/GovBiz-Team/GovBiz/tree/develop/backend/catalog-service) | 루트 Compose 기본 분리 서비스. 공고 수집·정규화·게시·검색 색인과 독립 원본 DB를 소유. AWS 템플릿은 아직 전환하지 않음 |
 | `ai-service` | [`backend/ai-service/`](https://github.com/GovBiz-Team/GovBiz/tree/develop/backend/ai-service) | LLM·임베딩·RAG·문서 처리. `core-service`의 계정·업무 DB를 직접 소유하지 않음 |
 | `ops-service` | [`backend/ops-service/`](https://github.com/GovBiz-Team/GovBiz/tree/develop/backend/ops-service) | Django 기반 운영·LLMOps 개발 기반. 현재 health/readiness·전용 DB·Gunicorn만 구현; 관리자 인증·업무 기능은 미구현 |
 
@@ -55,13 +59,14 @@ React Native 앱은 `GovBiz/frontend/mobile/`에서 웹과 함께 관리하며,
 
 | 현재 서비스명 | 배포 설정의 식별자 |
 | --- | --- |
-| `core-service` | Compose 서비스·내부 DNS `core-service`, ECR 저장소 `govbiz/core-service`. Kubernetes manifest는 아직 없음 |
-| `catalog-service` | 선택형 Compose 서비스 `catalog-service`. Kubernetes manifest는 아직 없음 |
-| `ai-service` | Compose 서비스·내부 DNS `ai-service`, ECR 저장소 `govbiz/ai-service`. Kubernetes manifest는 아직 없음 |
+| `core-service` | Compose·Kubernetes Deployment·Service `core-service`, 기존 AWS 템플릿 ECR `govbiz/core-service` |
+| `catalog-service` | Compose·Kubernetes Deployment·Service `catalog-service` |
+| `ai-service` | Compose·Kubernetes Deployment·Service `ai-service`, 기존 AWS 템플릿 ECR `govbiz/ai-service` |
 | `ops-service` | 통합 Compose `ops-service`, Kubernetes Deployment·Service `ops-service`, 로컬 검증 이미지 `govbiz-ops-service:<고유 태그>` |
 
-Kubernetes 설정은 `environments/services/ops-service/base/`와 `environments/local/ops-service/`입니다.
-Ops DB 컨테이너·Service는 `ops-mysql`입니다. DB 스키마 변경·기존 로컬 볼륨 삭제·AWS 리소스 생성은 하지 않습니다.
+네 서비스의 Helm 템플릿은 `charts/govbiz-service/`, 개별 설정은 `environments/local-msa/`입니다.
+이전 Ops 단독 Kustomize 검증은 `environments/services/ops-service/base/`와 `environments/local/ops-service/`에 유지합니다.
+전체 smoke의 DB Service는 `core-mysql`·`catalog-mysql`·`ops-mysql`입니다. 기존 로컬 볼륨 삭제·AWS 리소스 생성은 하지 않습니다.
 
 테이블 소유권, 내부 통신, 인증 위임과 복제 수 확대 조건은 [서비스·데이터 경계](docs/service-boundaries.md)를 따릅니다.
 
@@ -72,7 +77,7 @@ Ops DB 컨테이너·Service는 `ops-mysql`입니다. DB 스키마 변경·기�
 
 ## 빠른 시작: 정적 검증
 
-이 저장소 루트에서 실행합니다. Python 3.13과 `kubectl` 1.36 계열이 필요하며,
+이 저장소 루트에서 실행합니다. Python 3.13, Helm 4.3.0과 `kubectl` 1.36 계열이 필요하며,
 `kubectl kustomize` 렌더링에는 실행 중인 클러스터가 필요하지 않습니다.
 전역 Python 환경 대신 Git에서 제외되는 `.tools/` 가상환경을 사용합니다.
 
@@ -81,11 +86,12 @@ python3 -m venv .tools/venv
 .tools/venv/bin/python -m pip install -r scripts/requirements.txt
 .tools/venv/bin/python -B scripts/check_repository.py
 .tools/venv/bin/python -B scripts/check_kubernetes.py
+.tools/venv/bin/python -B scripts/check_msa.py
 .tools/venv/bin/python -B -m unittest discover -s scripts -p 'test_*.py'
 git diff --check
 ```
 
-정적 검증은 저장소 경계·문서 링크, Kustomize 렌더링, manifest 정책과 검증 도구의 안전장치를 확인합니다.
+정적 검증은 저장소 경계·문서 링크, Kustomize·Helm 렌더링, manifest·Argo 정책과 검증 도구의 안전장치를 확인합니다.
 실제 Kubernetes API 서버의 스키마 검증이나 Pod 실행을 대신하지 않습니다.
 
 ### 실제 클러스터 검증
@@ -93,12 +99,21 @@ git diff --check
 [로컬 Kubernetes 실행 안내](docs/kubernetes-local.md)의 도구 버전·준비 조건을 확인한 뒤,
 GovBiz에서 고유 태그의 `ops-service` 이미지를 빌드하고 이 저장소의 `scripts/smoke_kubernetes.py`를 실행합니다.
 별도의 Docker Engine·kind가 필요하며, 검증용 클러스터와 이미지 다운로드에 로컬 자원을 사용합니다.
+네 서비스 전체 검증은 [로컬 MSA 실행 안내](docs/msa-local.md)의 `scripts/smoke_msa.py`를 사용합니다.
 
 smoke는 임의 이름의 **새 kind 클러스터만** 생성하고 기존 kubeconfig·운영 Secret·RDS를 사용하지 않습니다.
 성공·실패 모두 자신이 만든 클러스터와 검증 데이터를 정리합니다. 기존 개발 컨테이너를 중지하거나
 운영 컨텍스트에 `kubectl apply`하는 방식으로 실행하지 않습니다.
 
 ## 검증 결과
+
+2026-09-20에는 네 서비스의 strict admission·실제 기동, 내부 인증 거절, 42개 공고 복제,
+교차 DB 인증 거절, AI만의 설정 롤아웃·복귀, Catalog 중단 시 조회 유지,
+Ops 테스트 테이블 dump·복원과 DB Pod 재생성 후 PVC 유지까지 통과했습니다.
+Infra 단위 테스트 50개·Helm strict lint·정적 정책 검사도 통과했습니다.
+범위와 미검증 항목은 [최신 검증 기록](docs/msa-validation-20260920.md)을 따릅니다.
+
+### 이전 Ops 단독 검증
 
 아래는 [2026-09-19 로컬 실행 기록](docs/kubernetes-validation-20260919.md)의 결과입니다.
 GitHub 원격 CI 또는 AWS 배포 성공을 의미하지 않습니다.
@@ -112,7 +127,7 @@ GitHub 원격 CI 또는 AWS 배포 성공을 의미하지 않습니다.
 | 앱 자동 복구·롤백 | `ops-service` Pod 삭제 후 재생성, 잘못된 이미지 배포 시 기존 healthy Pod 유지, 이전 이미지로 복구 |
 
 단일 노드 kind와 로컬 PVC는 운영 HA·백업이 아닙니다. NetworkPolicy 집행, 부하/HPA,
-DB 백업·복원, 관리자 인증, `core-service`·`catalog-service`·`ai-service`의 Kubernetes 전체 연동과 유료 AI 품질은 아직 검증하지 않았습니다.
+전체 운영 DB의 백업·시점 복구, 관리자 인증과 유료 AI 품질은 아직 검증하지 않았습니다.
 `rollout undo` 실험은 이미지 롤백이며, DB migration 롤백이나 GitOps 동기화 증거가 아닙니다.
 
 ## 구조
@@ -120,14 +135,19 @@ DB 백업·복원, 관리자 인증, `core-service`·`catalog-service`·`ai-serv
 ```text
 GovBiz-infra/
 ├─ argocd/
-│  └─ README.md               AppProject·Application 도입 조건
+│  ├─ local/                 네 Application·범위 제한 AppProject
+│  └─ README.md               동기화 조건과 한계
+├─ charts/                   서비스 Helm Chart·임시 데이터 저장소 Chart
 ├─ environments/
 │  ├─ services/ops-service/base/  ops-service의 Deployment·Service (리소스명 ops-service)
+│  ├─ local-msa/             네 서비스별 Helm values
 │  └─ local/                  ops-service overlay·검증용 MySQL·namespace
 ├─ kind/local.yaml            단일 노드 검증 클러스터; 운영/HA 아님
 ├─ docs/
 │  ├─ service-boundaries.md   서비스 책임·데이터·인증 경계의 초기 검토 기록
 │  ├─ kubernetes-local.md     로컬 검증 실행·제약·후속 단계
+│  ├─ msa-local.md            네 서비스 Helm·GitOps 실행·검증 범위
+│  ├─ msa-validation-20260920.md  네 서비스 실제 실행 검증 기록
 │  ├─ kubernetes-validation-20260919.md  실제 실행·장애·복구 증거
 │  ├─ repository-transition.md 이전 개발 환경의 안전한 전환 절차
 │  ├─ msa-kubernetes-argocd-plan.md
@@ -135,6 +155,9 @@ GovBiz-infra/
 ├─ scripts/
 │  ├─ check_repository.py     저장소 경계·문서 링크 검증
 │  ├─ check_kubernetes.py     렌더링·구성 정책 검증
+│  ├─ check_msa.py            Helm·Argo 경계 검사
+│  ├─ smoke_msa.py            네 서비스·DB 격리·장애·복구 검증
+│  ├─ gitops_msa.py           선택형 Git revision 자동 동기화 검증
 │  └─ smoke_kubernetes.py     격리 클러스터 상태·복구·롤백 검증
 └─ .github/workflows/ci.yml   저장소 경계·정적 구성 검증
 ```
@@ -162,7 +185,7 @@ GovBiz-infra/
 GovBiz의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼저
 [환경 파일·볼륨 전환 절차](docs/repository-transition.md)를 확인합니다.
 
-서비스명과 기존 배포 식별자는 [대응 표](#서비스명과-기존-배포-식별자의-구분)를 참고하세요.
+서비스명과 기존 배포 식별자는 [대응 표](#서비스명과-배포-식별자)를 참고하세요.
 과거 검증 기록의 이름·이미지 태그·커밋 고정 링크는 실행 당시 값을 보존합니다.
 
 기존 공개 GovBiz-ops 저장소는 삭제하거나 보관 처리하지 않습니다.
@@ -193,12 +216,11 @@ ECR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 
 
 ## 다음 단계
 
-1. 앱·infra 변경을 검토·병합하고 배포에 사용할 이미지와 manifest revision을 고정합니다.
-2. 격리된 클러스터에서 최소권한 Argo CD AppProject·`ops-service` Application·명시적 sync를 구현합니다.
-   Git 변경 → `ops-service` 교체 → Git revert 복귀를 실제로 검증합니다.
-3. NetworkPolicy 집행과 probe·종료·단일 scheduler·상태 저장소 정책을 확인한 뒤 `core-service`·`catalog-service`·`ai-service`를 단계적으로 이전합니다.
-4. `core-service`의 관리자 판정 계약에 맞춰 `ops-service` 인증과 업무 API를 구현합니다.
-5. Kubernetes 운영 방식·비용·TLS·IAM·비밀값·백업을 확정하고 승인받은 뒤 AWS 운영을 전환합니다.
+1. 로컬 검증을 통과한 Git revision으로 네 Argo Application의 실제 동기화·AI 단독 복귀를 검증합니다.
+2. `core-service`의 관리자 판정 계약에 맞춰 `ops-service` 인증과 업무 API를 구현합니다.
+3. NetworkPolicy 집행, Core·AI 의존성 readiness, 장기 작업 종료·중복 실행 방지를 검증합니다.
+4. 독립 이미지 발행 CI·digest 갱신과 상시 GitOps 환경을 연결합니다.
+5. 운영 방식·비용·TLS·IAM·비밀값·백업을 확정하고 승인받은 뒤 AWS 환경을 구성합니다.
 
 [MSA·Kubernetes·Argo CD 전환 설계](docs/msa-kubernetes-argocd-plan.md)와
 [코드 기반 전략 검토](docs/msa-strategy-review-20260919.md)에 단계별 통과 조건을 정리했습니다.
@@ -214,6 +236,7 @@ ECR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 
 
 [Infra CI](.github/workflows/ci.yml)는 애플리케이션 소스·submodule·로컬 Compose가 되돌아오지 않는지와
 문서 링크, Kustomize 렌더링·로컬 구성 정책·도구 단위 테스트를 검사합니다. kind smoke는 현재 CI에서 실행하지 않습니다.
+`helm-gitops` job은 Helm 4.3.0으로 네 릴리스·저장소 Chart를 lint하고 비밀값·단일 writer·Argo 권한 정책을 검증합니다.
 서비스 테스트와 통합 Compose 검증은 GovBiz CI의 책임입니다.
 infra CI 통과를 Kubernetes 배포, 관리자 인증, 전체 업무 연동, 실제 RAG 품질 검증으로 표시하지 않습니다.
 

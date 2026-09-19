@@ -2,9 +2,10 @@
 
 이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 웹·모바일·공통 패키지와 `core-service`·`catalog-service`·`ai-service`·`ops-service`를 GovBiz에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지한다. 두 저장소의 기본 브랜치는 `develop`이다.
 후속으로 `ops-service`의 Gunicorn 실행 이미지와 로컬 Kubernetes 리소스·검증 도구를 추가했다.
-[최신 실행 범위](kubernetes-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
-`catalog-service`의 독립 프로세스·DB·`core-service` HTTP 연동은 로컬에서 검증했다. Argo CD 연결,
-`core-service`·`catalog-service`·`ai-service`의 Kubernetes 이식과 AWS 운영 전환은 아직 구현하지 않았다.
+[최신 실행 범위](msa-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
+후속 변경으로 네 서비스 Helm values와 로컬 Argo CD AppProject·Application·검증 도구를 구현했다.
+아래는 초기 전환 계획이며, 실제 실행 완료 범위는 메인 README의 검증 기록을 기준으로 한다.
+AWS 운영 전환과 이미지 발행 CI 연결은 아직 구현하지 않았다.
 현재 소스 경로는 `backend/{core-service,catalog-service,ai-service,ops-service}`이며,
 아래 초기 분석의 커밋 고정 링크는 당시 경로를 유지한다.
 사용자 결정: **Kubernetes는 포트폴리오 필수 목표이며, 우선 로컬에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
@@ -74,8 +75,8 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 
 애플리케이션 코드·로컬 Compose·테스트는 GovBiz에 모은다.
 GovBiz-infra에는 향후 환경별 배포 상태와 Argo CD 정의만 추가한다.
-`environments/`에는 이제 `ops-service` base와 local overlay·검증용 DB가 있다. `argocd/`에는 아직 README만 있다.
-현재 구성과 향후 추가할 영역을 구분하면 다음과 같다. 현재 실행법은 [로컬 검증 안내](kubernetes-local.md)를 따른다.
+아래 구조는 최초 Ops 단독 검증 단계의 기록이다. 현재는 `charts/`, `environments/local-msa/`,
+`argocd/local/`가 추가되었으며 [전체 로컬 검증 안내](msa-local.md)를 따른다.
 
 ```text
 GovBiz-infra/
@@ -88,8 +89,8 @@ GovBiz-infra/
 └─ docs/
 ```
 
-`core-service`·`catalog-service`·`ai-service`의 Kubernetes base/overlay, 운영 환경, 공통 라우팅·네트워크,
-Argo CD AppProject·Application은 향후 추가할 대상이다. 아직 해당 manifest나 디렉터리를 만들지 않았다.
+네 서비스의 Helm Chart·로컬 AppProject·Application은 후속 구현에 포함되었다.
+운영 환경, 공통 외부 라우팅·네트워크 정책, 이미지 발행 CI는 향후 추가할 대상이다.
 
 처음에는 Kustomize의 base/overlay로 환경 차이를 관리한다. 서비스별 Argo CD Application으로 독립 배포와 상태 확인이 가능하게 한다.
 운영 Pod에는 개발 체크아웃 소스를 마운트하지 않는다. 애플리케이션 CI가 만든 불변 이미지 digest를 배포 설정에 기록한다.

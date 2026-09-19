@@ -13,5 +13,5 @@ configMapGenerator:
       - DB_HOST=ops-mysql
       - DB_PORT=3306
 images:
-  - name: govbiz-ops
+  - name: govbiz-ops-service
     newTag: local-k8s

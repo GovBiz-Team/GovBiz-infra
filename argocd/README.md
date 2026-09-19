@@ -1,7 +1,8 @@
 # Argo CD 구성 경계
 
-상태: **도입 준비 문서만 존재한다.** 아직 Application·AppProject manifest, 저장소 자격 증명,
-클러스터 연결, Argo CD 설치·동기화는 없다. 이 디렉터리를 현재 동작하는 배포 경로로 지정하지 않는다.
+상태: **로컬용 Application 4개와 AppProject 정의를 구현했다.** `local/`에서
+Core·Catalog·AI·Ops의 Helm 배포를 별도로 관리한다. 최초 sync는 수동이며 운영에 연결하지 않는다.
+실제 설치·Git 동기화 결과는 실행 보고서와 구분한다. [로컬 MSA 실행](../docs/msa-local.md)을 따른다.
 
 ## 이 디렉터리에 들어갈 내용
 
@@ -9,10 +10,9 @@
 - Application: 서비스별 환경 경로, 추적할 승인된 revision, 대상 namespace와 동기화 정책
 - 로컬 검증 후 운영 연결로 전환하는 부트스트랩·권한·복구 절차
 
-실제 서비스 Deployment·Service 등의 원하는 실행 상태는 `../environments/`에서 관리한다.
-현재 로컬 검증 대상과 Kubernetes 리소스명은 모두 `ops-service`다.
-첫 Application의 대상 경로는 현재 존재하는 overlay와 대조해 확정하며, Argo CD 설정 파일은
-권한·동기화 범위를 확정한 뒤 만든다. 빈 설정을 유효한 manifest로 꾸미지 않는다.
+현재 Application은 `../charts/govbiz-service`와 서비스별 `../environments/local-msa/` 값을 읽는다.
+대상 namespace는 `govbiz-msa`이며 Deployment·Service만 허용한다. 기존 Ops Kustomize
+예제의 `govbiz-local`과 분리하고 Secret·PVC·클러스터 관리 권한을 앱에 주지 않는다.
 
 ## 연결 전 통과 조건
 

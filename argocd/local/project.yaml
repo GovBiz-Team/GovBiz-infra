@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata: {name: govbiz-local-msa, namespace: argocd}
+spec:
+  description: Local-only application releases; no cluster administration or secrets.
+  sourceRepos: [https://github.com/GovBiz-Team/GovBiz-infra.git]
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: govbiz-msa}
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - {group: apps, kind: Deployment}
+    - {group: "", kind: Service}
+  orphanedResources: {warn: true}
