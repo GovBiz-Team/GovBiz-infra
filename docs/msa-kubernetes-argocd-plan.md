@@ -1,7 +1,10 @@
 # GovBiz MSA·Kubernetes·Argo CD 전환 설계
 
-이 문서는 현재 코드를 확인한 **전환 제안**이다. 저장소 경계는 React·Core·AI·Ops를 GovBiz-web에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지하는 것으로 결정했다. Kubernetes 리소스, Argo CD 연결, 업무 서비스 추출은 아직 구현하지 않았다.
-사용자 결정: **우선 로컬 Kubernetes에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
+이 문서는 현재 코드를 확인한 **단계별 전환 계획**이다. 저장소 경계는 React·Core·AI·Ops를 GovBiz-web에 통합하고 GovBiz-infra를 배포 설정 저장소로 유지하는 것으로 결정했다.
+후속으로 Ops의 Gunicorn 실행 이미지와 로컬 Kubernetes 리소스·검증 도구를 추가했다.
+[최신 실행 범위](kubernetes-local.md)와 [서비스 경계 계약](service-boundaries.md)을 우선 참고한다.
+Argo CD 연결, Core·AI의 Kubernetes 이식, 업무 서비스 추출과 운영 전환은 아직 구현하지 않았다.
+사용자 결정: **Kubernetes는 포트폴리오 필수 목표이며, 우선 로컬에서 검증하고 운영 환경은 나중에 결정한다.** EKS 또는 EC2 운영을 현재 전제로 확정하지 않는다.
 
 ## 1. 확인한 현재 상태
 
@@ -13,7 +16,7 @@
 | 통합 실행 | GovBiz-web의 로컬 Compose가 Core·AI·Ops 등을 연결; infra submodule 사용 종료 | 애플리케이션 PR은 같은 저장소에서, 향후 환경별 배포 설정 PR은 infra에서 관리 |
 | Spring Core | 계정, 공고, 신청 준비, 중복 검토, 파트너, 리포트, 관리자 기능 | 업무별 직접 호출과 데이터 의존 관계를 풀어야 서비스가 독립된다 |
 | FastAPI | 조건 해석, 검색·색인·근거 답변, 문서 분석, 도우미 | 별도 실행 프로세스를 유지하고 Core와의 릴리스 결합을 해소한 뒤 추가 분리를 판단한다 |
-| Django | 상태 확인 API, 전용 MySQL, 개발용 runserver | 운영 서버와 인증 연동, 실제 운영 관리 업무 구현이 필요하다 |
+| Django | 상태 확인 API, 전용 MySQL; 후속 변경에서 이미지 기본 실행을 Gunicorn으로 변경 | 개발 Compose만 runserver 유지; 인증 연동과 운영 관리 업무는 미구현 |
 | AWS 배포 코드 | CodeBuild 검증·이미지 빌드 → ECR → SSM → EC2 Compose | 이미지 빌드는 CI에, Kubernetes 배포는 Argo CD에 맡긴다 |
 | 운영 DB 설정 | 운영 Compose의 Core는 RDS에 연결 | Kubernetes 도입만을 이유로 DB를 클러스터 안으로 옮기지 않는다 |
 
@@ -65,7 +68,8 @@ MSA 전환은 별도로 업무 책임, 데이터 소유권, 공개 API·이벤�
 
 애플리케이션 코드·로컬 Compose·테스트는 GovBiz-web에 모은다.
 GovBiz-infra에는 향후 환경별 배포 상태와 Argo CD 정의만 추가한다.
-현재 `argocd/`, `environments/`에는 README만 있으며, 아래의 세부 구성은 아직 구현하지 않은 제안이다.
+`environments/`에는 이제 Ops base와 local overlay·검증용 DB가 있다. `argocd/`에는 아직 README만 있다.
+아래 구조는 최종 확장 제안이며, 현재 실제 파일 목록과 실행법은 [로컬 검증 안내](kubernetes-local.md)를 따른다.
 
 ```text
 GovBiz-infra/
@@ -122,7 +126,7 @@ flowchart LR
 1. **수집·색인 실행 역할:** 현재 Core의 `@Scheduled`는 각 프로세스에서 실행된다. 세대별 스냅샷 공개 보호가 있어도 외부 수집·색인 호출 자체의 중복 방지를 뜻하지 않는다. 전용 실행 역할과 작업 단위 중복 방지를 확인하기 전에는 replicas만 늘리지 않는다.
 2. **큐 소비·종료:** DB 작업 선점, 중복 배달, ACK, DLQ, 실행 중 Pod 종료와 재기동을 검증한다. 재시도 때문에 동일 유료 AI 작업을 반복하지 않도록 기존 기록·재실행 정책을 보존한다.
 3. **요청·예산 제한:** 프로세스 메모리의 동시 실행 제한·캐시가 여러 Pod에서 어떤 의미를 가지는지 확인한다. 기존 Redis·DB 기반 정책과 함께 검토한다.
-4. **운영 이미지:** Django runserver를 운영 WSGI/ASGI 실행으로 교체하고 GovBiz-web의 Ops CI에서 테스트·빌드한다. 개발 소스 bind mount와 개발 서버를 운영 설정에 가져오지 않는다.
+4. **운영 이미지:** Django 기본 이미지는 Gunicorn으로 변경하고 Ops CI에 기본 이미지 검증을 추가했다. 개발 Compose의 runserver·소스 bind mount를 Kubernetes에 가져오지 않는다. TLS·인증·실제 업무 운영 준비는 별도다.
 5. **상태 확인과 자원:** startup/readiness/liveness를 구분하고, 외부 AI 장애로 무한 재시작하지 않도록 설계한다. 요청 시간·종료 유예·메모리·CPU를 실제 부하에 맞춰 정한다.
 6. **상태 저장소:** RDS는 우선 기존 연결을 유지한다. Elasticsearch·Qdrant·RabbitMQ·Redis는 백업·복구·PVC와 운영 주체를 먼저 정한다. 모든 DB를 단순히 Pod 하나씩으로 변환하지 않는다.
 7. **추적:** 서비스 간 request/job ID, 오류율, 지연, 큐 적체를 관측한다. Kubernetes 로그 수집과 Argo CD의 배포 상태만으로 업무 처리 성공을 판단하지 않는다.
@@ -139,7 +143,8 @@ flowchart LR
 | 6 | 운영 전환 | 데이터 복구 연습·권한·동시성 검증 후 트래픽 전환, 기존 자동 배포 경로 정리 |
 
 유료 AI 평가는 승인된 전송 데이터와 호출 예산 안에서만 수행한다. 무료 스텁 통합 검증과 실제 RAG 품질 검증은 결과를 구분한다.
-이번 설계 작성에서는 서버 접속, 클러스터 생성, 운영 데이터 이동, 외부 AI 호출을 수행하지 않았다.
+초기 설계 작성 시점에는 서버 접속, 클러스터 생성, 운영 데이터 이동, 외부 AI 호출을 수행하지 않았다.
+후속 로컬 Kubernetes 구현·검증 범위는 [실행 안내](kubernetes-local.md)에 별도로 기록한다.
 
 ## 8. 로컬 우선 검증 계획
 
@@ -156,7 +161,8 @@ flowchart LR
 초기 설계 조사 당시 PC에서 Docker와 kubectl 명령을 확인했다. kind·helm·argocd 명령은 당시 PATH에서 발견되지 않았다. 실행 전 현재 상태를 다시 확인한다.
 Docker 엔진에 할당된 메모리는 약 7.6 GiB이며, 이는 여유 메모리 측정값이 아니다.
 기존 전체 Compose와 Kubernetes 전체 스택을 동시에 충분히 실행할 수 있다고 가정하지 않는다.
-이 문서 작성 중 도구 설치나 로컬 클러스터 생성은 수행하지 않았다.
+초기 설계 시점에는 도구 설치나 로컬 클러스터 생성을 수행하지 않았다. 후속 구현에서는
+검증용 kind 도구와 임시 kubeconfig를 사용하므로 기존 환경의 도구/클러스터 상태와 구분한다.
 
 ## 9. 운영 이전에 확정할 환경
 

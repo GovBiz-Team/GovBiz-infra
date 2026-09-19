@@ -74,7 +74,7 @@ def main():
     if errors:
         raise SystemExit("\n".join(errors))
     print("PASS: deployment-repository boundary and local documentation links.")
-    print("Kubernetes resources and Argo CD runtime are not configured or validated by this check.")
+    print("This boundary check does not validate Kubernetes resources or Argo CD runtime; run their separate checks.")
 
 
 if __name__ == "__main__":
