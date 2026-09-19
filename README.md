@@ -33,8 +33,8 @@ Kubernetes를 포트폴리오의 필수 목표로 두고, **`ops-service` + 검�
 | [GovBiz](https://github.com/GovBiz-Team/GovBiz) | React 웹·React Native 모바일·공통 패키지·`core-service`·`catalog-service`·`ai-service`·`ops-service` 코드, 테스트, Dockerfile, 로컬 Compose |
 | [GovBiz-infra](https://github.com/GovBiz-Team/GovBiz-infra) | 로컬 Kubernetes 배포 설정·검증, 향후 운영/GitOps 전환·복구 절차 |
 
-React Native 앱은 `GovBiz/mobile/`에서 웹과 함께 관리하며,
-웹과 모바일의 공통 계약은 `GovBiz/packages/shared/`에서 관리합니다.
+React Native 앱은 `GovBiz/frontend/mobile/`에서 웹과 함께 관리하며,
+웹과 모바일의 공통 계약은 `GovBiz/frontend/packages/shared/`에서 관리합니다.
 
 모노레포는 소스 관리 단위이며, 서비스의 프로세스·데이터·인증 책임을 합친다는 뜻이 아닙니다.
 
@@ -148,9 +148,9 @@ GovBiz-infra/
 
 새 `GovBiz` 체크아웃에서 브랜치를 만들고 해당 저장소로 PR을 올립니다.
 
-- React: `frontend/`
-- React Native: `mobile/`
-- 웹·모바일 공통 계약: `packages/shared/`
+- React: `frontend/web/`
+- React Native: `frontend/mobile/`
+- 웹·모바일 공통 계약: `frontend/packages/shared/`
 - `core-service`: `backend/core-service/`
 - `catalog-service`: `backend/catalog-service/`
 - `ai-service`: `backend/ai-service/`

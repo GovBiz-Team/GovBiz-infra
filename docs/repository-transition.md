@@ -31,8 +31,9 @@
 skn34_project/
 ├─ GovBiz/                      새 개발 기준 체크아웃
 │  ├─ frontend/
-│  ├─ mobile/
-│  ├─ packages/shared/
+│  │  ├─ web/
+│  │  ├─ mobile/
+│  │  └─ packages/shared/
 │  ├─ backend/{core-service,catalog-service,ai-service,ops-service}/
 │  ├─ compose.yaml
 │  ├─ compose.ops.yaml

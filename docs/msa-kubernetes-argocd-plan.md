@@ -100,7 +100,7 @@ infra에서는 submodule SHA가 아닌 환경별 이미지 digest를 배포 버�
 이번 저장소 정리에서는 실제 운영 연결·서버 파일·이미지를 바꾸지 않는다. Kubernetes 전환 검증과 승인 뒤 해당 환경의 배포 기준·권한을 단일 경로로 옮긴다.
 
 현재 프론트엔드 배포를 Kubernetes로 반드시 옮길 필요는 없다. 외부 웹 호스팅을 유지하면서 백엔드만 전환할 수도 있다.
-React Native 앱은 GovBiz의 `mobile/`, 웹·앱 공통 계약은 `packages/shared/`에서 관리한다.
+React Native 앱은 GovBiz의 `frontend/mobile/`, 웹·앱 공통 계약은 `frontend/packages/shared/`에서 관리한다.
 앱 바이너리는 모바일 배포 대상으로 관리하며 Kubernetes에서 실행하지 않는다.
 
 ## 5. CI와 Argo CD의 역할
