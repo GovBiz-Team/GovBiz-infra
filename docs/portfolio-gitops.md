@@ -77,12 +77,46 @@ kubectl --kubeconfig .local/portfolio/kubeconfig --context kind-govbiz-portfolio
 # 다른 터미널에서: curl http://127.0.0.1:18080/api/v1/health
 ```
 
+## 웹 화면 연결
+
+위 port-forward를 유지하고 앱 저장소 `frontend/web`에서 Node 24.x/pnpm 11.22.x로
+`pnpm dev:k8s`를 실행한다. 브라우저는 `http://localhost:5173/?mode=filter`를 연다.
+`localhost`는 Core의 허용 Origin과 일치해야 하므로 `127.0.0.1` 주소로 바꾸지 않는다.
+
+경로는 브라우저 → Mac Vite `/api` 프록시 → `127.0.0.1:18080` → Kubernetes Core다.
+웹은 Mac 개발 서버이며 Kubernetes의 다섯 번째 서비스나 외부 공개 Ingress가 아니다.
+별도 Vercel/AWS 변경도 하지 않는다. 포트 5173이 사용 중이면 다른 서버를 종료하거나 용도를 먼저 확인한다.
+
+`portfolio` Vite 모드는 `.env*` 자동 로딩과 상속된 `VITE_*` 노출을 차단하고 API 상대 주소,
+유료 도우미 비활성, 카카오 링크 비활성을 고정한다. 개발 로그인 버튼도 숨기며 Core의 개발 로그인은
+계속 꺼져 있다. 기존 Compose/일반 웹 개발 모드는 변경하지 않는다.
+세부 실행은 [웹 README](https://github.com/GovBiz-Team/GovBiz/blob/develop/frontend/web/README.md)를 참고한다.
+
+두 프로세스가 실행 중일 때 infra에서 아래 읽기 전용 검사를 실행한다.
+
+```bash
+.tools/venv/bin/python -B scripts/check_portfolio_http.py
+```
+
+HTML·Core health·공개 공고 목록·익명 세션 401을 확인한다. 빈 공고 목록은 연결 성공을 의미할 뿐
+실제 수집 성공이 아니다. 수집을 꺼 둔 새 Catalog DB에는 snapshot이 없어 Core projection에
+`CATALOG_UNAVAILABLE`/이전 데이터 유지 경고가 생길 수 있다. 이를 숨기거나 성공 데이터로 대체하지 않는다.
+
+무료 시연 데이터는 앱 저장소의 [전용 데모 도구](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/portfolio-demo.md)로
+명시적으로 입력한다. 이번 Mac에는 데모 공고 8건, 일반 회원·기업·모집글 각 2개를 입력했다.
+공고는 Catalog에서 Core로 기존 인증 snapshot 경로를 거치며 실제 외부 수집 성공으로 기록하지 않는다.
+계정별 무작위 비밀번호는 `.local/portfolio/demo-accounts.json`(0600)에만 있다. Git에 추가하지 않는다.
+
+웹과 port-forward는 각각 Ctrl-C로 종료한다. Core Pod 교체로 port-forward가 종료되면 첫 명령을
+다시 실행한다. Kubernetes 자체는 계속 유지된다. 두 서버는 loopback에만 listen한다.
+
 ## 비밀값·데이터·비용 경계
 
 - Core/Catalog/Ops DB는 독립 사용자·무작위 비밀번호·PVC를 사용한다. 기존 MySQL/RDS에 접속하지 않는다.
 - 내부 공유 토큰은 새로 만들고 대응하는 서비스끼리만 공유한다. 재실행 시 기존 runtime Secret을 회전하지 않는다.
-- 기존 계정·실제 공고 데이터는 없다. 수집·메일·유료 AI 호출은 꺼져 있으며 AI의 외부 URL도 비활성 주소다.
-- 실제 서비스를 시연하려면 데이터·인증·API 키를 별도로 구성해야 한다. 자동 배포 확인과 업무 품질 검증은 다르다.
+- 기존 계정·실제 공고 데이터는 가져오지 않았다. 새 데모 회원은 일반 권한이며 관리자나 실제 인증 이력을 만들지 않는다.
+  수집·메일·유료 AI 호출은 꺼져 있으며 AI의 외부 URL도 비활성 주소다.
+- 무료 필터·파트너·로그인은 데모로 확인한다. 실제 데이터·메일·OAuth·AI 품질은 별도 구성과 검증이 필요하다.
 - Kubernetes Secret은 base64일 뿐 암호화 보장이 아니다. Docker/kubeconfig 접근자는 Secret을 읽을 수 있다.
 - 토큰은 주기적으로 교체한다. 새 read-only 토큰 파일로 prepare를 다시 실행하면 `ghcr-pull`만 갱신한다.
   네 서비스의 인증 pull 검증 후 임시 토큰 파일을 삭제하고 만료일을 별도로 관리한다.

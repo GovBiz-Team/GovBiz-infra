@@ -62,3 +62,30 @@ GitHub 지연 여부는 Actions에서 별도로 확인한다. 배포 선택·pus
   이 배포 연결 검증으로 완료됐다고 간주하지 않는다.
 
 실행·중지·토큰 교체 방법은 [portfolio GitOps](portfolio-gitops.md)를 따른다.
+
+## 로컬 웹 연결과 무료 데모 검증
+
+후속 단계에서 Mac의 Vite portfolio 모드를 Kubernetes Core의 loopback port-forward에 연결했다.
+`http://localhost:5173/?mode=filter`의 실제 브라우저 화면에서 `[데모]` 공고 8건 표시를 확인했다.
+웹 자체를 Kubernetes에 배포한 것은 아니며 AWS·Vercel 설정은 바꾸지 않았다.
+
+- `.env*` 자동 로딩·상속 VITE 값 노출 차단, API 상대 주소·도우미 AI 비활성·개발 로그인 버튼 숨김 확인.
+- 웹 `pnpm test --maxWorkers=2`: 100개 파일, 1,244개 테스트 통과. `pnpm lint`, `pnpm build` 통과.
+  Mac 클러스터와 함께 실행하므로 테스트 worker 수만 제한했고 timeout·검증은 완화하지 않았다.
+- infra 테스트 77개 통과(skip 없음), repository·Kustomize·Helm MSA/portfolio 검사 통과.
+- 앱 배포 도구 테스트 93개 실행: 77개 통과, 기존 opt-in Docker MySQL 테스트 16개 미실행.
+  이번 데모 도구 테스트 6개는 통과했으며, 실제 입력·재실행은 전용 클러스터의 MySQL 8.4에서 확인했다.
+- 공고 8건은 Catalog DB에서 기존 인증 snapshot API로 Core에 전달했다. Core DB를 직접 채워
+  projection을 우회하지 않았다. 임시 링크가 웹의 공식 도메인 검증에 거절되는 것을 발견해
+  데모 링크를 제공처 홈페이지로 수정하고 새 generation/revision으로 발행했다. 검증 규칙은 유지했다.
+- 일반 회원 2개와 가상 기업·프로필·모집글 각 2건, 계정별 관심 공고 1건을 추가했다.
+  실제 HTTP 로그인 200·HttpOnly 쿠키·계정/기업/관심 공고 조회·로그아웃 204·이후 401을 두 계정 모두 확인했다.
+- `check_portfolio_http.py`: 웹 HTML·Core health·공고 total=8·익명 세션 401 통과.
+  공개 모집글 API total=2도 확인했다. 로그인 UI 직접 조작·신규 회원가입 검증과는 구분한다.
+- 두 계정은 모두 USER다. 비밀번호는 각각 무작위이며 Git 제외 경로 `.local/portfolio/demo-accounts.json`에
+  0600으로만 저장했다. 재실행으로 비밀번호·권한을 변경하지 않았다.
+- 네 Application은 계속 `Synced/Healthy`이고 기존 Compose 데이터·볼륨은 그대로다.
+
+이 단계에도 실제 외부 공고 수집·사업자 확인·SMTP·OAuth·OpenAI 호출은 수행하지 않았다.
+실제 공고나 AI 품질 검증이 아니다. 10분 schedule의 실제 이벤트는 여전히 관측하지 못했으며
+이전 수동 시작 promotion을 schedule 검증으로 바꾸어 보고하지 않는다.
