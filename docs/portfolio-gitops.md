@@ -56,6 +56,9 @@ python -B scripts/portfolio_cluster.py prepare \
 
 기본 전용 kubeconfig는 Git에서 제외된 `.local/portfolio/kubeconfig`다. 기존 kubeconfig·context를
 변경하지 않는다. `--state-dir`로 다른 안전한 전용 디렉터리를 지정할 수 있다.
+이번 Mac에는 `.tools/bin/{kind,helm}`과 `.tools/venv`도 비추적 경로에 준비했다.
+따라서 `python` 대신 `.tools/venv/bin/python`을 쓰고, prepare/activate에는
+`--kind .tools/bin/kind --helm .tools/bin/helm`을 추가할 수 있다.
 클러스터 API는 127.0.0.1로 제한하며 외부 서버 context에는 자격 증명을 보내지 않는다.
 prepare는 내부 Secret·DB·Argo CD Core까지만 준비한다. 검증·commit/push 후 다음을 명시적으로 실행한다.
 
@@ -116,6 +119,7 @@ git diff --check
 ```
 
 정적 통과와 실제 pull·Synced/Healthy 상태를 구분해서 기록한다.
+[실행 검증 기록](portfolio-validation-20260920.md)을 참고한다.
 NetworkPolicy 집행·의존성 readiness·부하·무중단·전체 내부 인증·실제 AI 품질은 여전히 별도 검증이다.
 
 공식 근거: [GHCR 인증](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry),
