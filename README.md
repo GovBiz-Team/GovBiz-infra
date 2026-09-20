@@ -23,8 +23,9 @@ Kubernetes를 포트폴리오의 필수 목표로 두고, 기존 Ops Kustomize �
 | 운영 환경 | 현재 운영 환경 없음. EC2 Compose·CodeBuild·SSM 설정은 앱 저장소의 재배포용 템플릿이며 자동 실행하지 않음 |
 | 로컬 Kubernetes | Core·Catalog·AI·Ops 및 전용 DB를 kind에서 실행. HTTP 복제·DB 접근 거절·AI 단독 설정 롤아웃·Catalog 장애·Ops 테스트 데이터 복구 검증 완료 |
 | 서비스 경계 | Catalog 원본 DB와 Core 조회용 복제본, Ops DB를 분리. 루트 Compose와 로컬 Kubernetes에 적용했으며 AWS 운영에는 반영하지 않음 |
-| Helm·Argo CD | 네 Application의 원격 Git 동기화 및 AI만의 자동 설정 변경·복귀를 Argo CD Core에서 검증. 상시 운영 클러스터는 없음 |
-| 아직 미구현 | Ops 관리자 인증·LLMOps 업무, 전체 내부 인증·NetworkPolicy 집행, 이미지 digest 자동 승격과 상시 클러스터 연결, AWS Kubernetes 운영 전환 |
+| Helm·Argo CD | 임시 검증 환경 외에 Mac 유지형 `govbiz-portfolio` 환경 추가. 네 서비스의 비공개 GHCR digest와 자동 sync 사용. 클라우드 운영은 아님 |
+| 자동 이미지 선택 | Infra Actions가 검증된 발행 결과를 주기적으로 읽어 `environments/portfolio`의 digest를 직접 커밋. 별도 cross-repo 쓰기 PAT 없음 |
+| 아직 미구현 | Ops 관리자 인증·LLMOps 업무, 전체 내부 인증·NetworkPolicy 집행, AWS Kubernetes 운영 전환 |
 
 검증용 클러스터는 테스트 후 삭제합니다. **현재 Kubernetes가 운영 서비스를 계속 실행하고 있다는 뜻은 아닙니다.**
 최신 결과는 [2026-09-20 네 서비스 검증 기록](docs/msa-validation-20260920.md),
@@ -192,25 +193,24 @@ GovBiz의 실행 안내를 따르며, 기존 개발 데이터가 있다면 먼�
 기존 공개 GovBiz-ops 저장소는 삭제하거나 보관 처리하지 않습니다.
 가져온 코드의 출처와 기준 커밋은 전환 문서에 남기고, Git 이력 전체를 합쳤다고 표시하지 않습니다.
 
-## 목표 상시 배포 흐름 — 이미지 CI·운영 클러스터 미연결
+## Mac 유지형 자동 배포 흐름
 
 1. GovBiz PR에서 해당 서비스와 공개 계약의 테스트를 수행합니다.
 2. 신뢰된 릴리스 CI가 이미지를 빌드하여 GHCR에 올립니다.
-3. CI가 GovBiz-infra에 해당 환경의 이미지 digest 변경 PR을 만듭니다.
+3. GovBiz-infra의 `Portfolio image promotion`이 10분 주기로 성공 발행을 검증하고 portfolio digest를 `develop`에 직접 커밋합니다.
 4. 검토·병합된 배포 설정을 Argo CD가 지정 Kubernetes 클러스터에 동기화합니다.
 
 이미지 빌드는 CI, 이미지 보관은 GHCR, 사용할 버전 선택은 infra 변경,
 실제 Kubernetes 상태 동기화는 Argo CD의 책임입니다.
 GHCR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가 자동 완료되지는 않습니다.
-로컬 Argo CD의 Git 동기화·복귀는 검증했습니다. 이미지 digest 자동 승격과
-상시 클러스터 연결은 아직 구현·검증해야 합니다.
+로컬 Argo CD의 Git 동기화·복귀를 검증한 구성에 Mac 유지형 환경을 추가했습니다.
+일정 실행과 Argo polling에는 지연이 있으며 Mac/Docker가 꺼져 있으면 배포되지 않습니다.
 
-현재 GovBiz에는 서비스별 GHCR 발행 CI를 구현했고, 이 저장소에는
-검토한 receipt로 기존 비로컬 환경의 digest만 갱신하는 도구를 추가했습니다.
-[이미지 버전 선택 안내](docs/image-promotion.md)를 따릅니다. AWS OIDC는 이 경로에 필요 없으며,
-저장소 간 자동 쓰기·대상 환경·상시 Argo 동기화는 아직 연결하지 않았습니다.
+현재 비공개 GHCR 발행을 재개했고, infra 자신의 GITHUB_TOKEN으로 자기 저장소의 배포 설정만 갱신합니다.
+Kubernetes pull에는 별도 읽기 전용 토큰을 Secret으로 주입합니다. AWS OIDC는 필요 없습니다.
+[Mac GitOps 실행·권한·복구 안내](docs/portfolio-gitops.md)와 [이미지 버전 선택 안내](docs/image-promotion.md)를 따릅니다.
 
-처음에는 로컬 검증과 명시적 동기화를 사용하며, 운영 자동 동기화 여부는 대상·권한·복구 절차를 확정한 뒤 결정합니다.
+`local-msa` 임시 검증은 수동 최초 sync를 유지하고, 승인된 `portfolio`만 자동 sync/self-heal을 사용하며 자동 prune는 끕니다.
 같은 환경·서비스를 기존 SSM 배포와 Argo CD가 동시에 변경하지 않도록 전환 시 배포 주체를 하나로 정합니다.
 
 ## 비밀값과 변경 승인
@@ -225,7 +225,7 @@ GHCR에 새 이미지가 올라오는 것만으로 버전 선택이나 배포가
 
 1. `core-service`의 관리자 판정 계약에 맞춰 `ops-service` 인증과 업무 API를 구현합니다.
 2. NetworkPolicy 집행, Core·AI 의존성 readiness, 장기 작업 종료·중복 실행 방지를 검증합니다.
-3. 독립 이미지 발행 CI·digest 갱신과 상시 GitOps 환경을 연결합니다.
+3. Mac 자동 배포를 운영하며 토큰 만료·배포 실패·rollback과 데이터 백업을 관리합니다.
 4. 운영 방식·비용·TLS·IAM·비밀값·백업을 확정하고 승인받은 뒤 AWS 환경을 구성합니다.
 
 [MSA·Kubernetes·Argo CD 전환 설계](docs/msa-kubernetes-argocd-plan.md)와

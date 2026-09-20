@@ -5,6 +5,7 @@
 __pycache__/
 *.py[cod]
 .tools/
+.local/
 .DS_Store
 .idea/
 .vscode/

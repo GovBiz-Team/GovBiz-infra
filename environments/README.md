@@ -3,7 +3,10 @@
 상태: **`local-msa/`에 Core·Catalog·AI·Ops의 독립 Helm values를 구현했다.**
 템플릿은 `../charts/`에 있으며, `../argocd/local/`의 Application이 각 values를 참조한다.
 기존 `services/ops-service/base`·`local/ops-service`·`local/ops-mysql`은 Ops 단독 Kustomize 검증용으로 유지한다.
-운영 클러스터·배포에 선택된 릴리스 digest·`prod` overlay는 아직 없으며 EKS를 생성하지 않는다.
+클라우드 운영 클러스터·`prod` overlay는 없으며 EKS를 생성하지 않는다.
+`portfolio/`는 Mac 유지형 kind의 비공개 GHCR digest 설정이다. `localMode: false`는
+로컬 mutable tag를 금지한다는 의미이며 클라우드 운영을 뜻하지 않는다.
+[portfolio 자동 배포 안내](../docs/portfolio-gitops.md)를 따른다.
 
 애플리케이션 코드·Dockerfile·테스트·로컬 Compose는 GovBiz에서 관리한다.
 향후 이 디렉터리는 승인된 각 환경의 원하는 실행 상태를 관리한다.

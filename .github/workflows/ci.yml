@@ -87,7 +87,9 @@ jobs:
       - name: Test chart boundaries and rejected settings
         run: python -B -m unittest discover -s scripts -p 'test_check_msa.py'
       - name: Validate independent releases and Argo project scope
-        run: python -B scripts/check_msa.py
+        run: |
+          python -B scripts/check_msa.py
+          python -B scripts/check_portfolio.py
       - name: Lint each service and disposable local storage
         run: |
           set -euo pipefail

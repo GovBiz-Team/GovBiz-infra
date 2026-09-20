@@ -1,0 +1,30 @@
+serviceName: ops-service
+localMode: false
+image:
+  repository: ghcr.io/govbiz-team/govbiz-ops-service
+  digest: sha256:af3d40164ffbb9ebd3d389c258f898eb8cd536a4723804d442a7ba7d3868cae6
+  tag: ''
+  pullPolicy: IfNotPresent
+imagePullSecrets:
+- name: ghcr-pull
+port: 8000
+healthPath: /api/v1/health
+readyPath: /api/v1/health/ready
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: '1'
+    memory: 384Mi
+env:
+  DJANGO_DEBUG: 'false'
+  DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,ops-service
+  DB_NAME: govbiz_ops
+  DB_USER: govbiz_ops
+  DB_HOST: ops-mysql
+  DB_PORT: '3306'
+secretName: ops-runtime
+secretKeys:
+- DJANGO_SECRET_KEY
+- DB_PASSWORD

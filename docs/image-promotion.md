@@ -2,17 +2,20 @@
 
 GovBiz의 이미지 발행 CI는 서비스별 GHCR 이미지 digest와 JSON receipt를 준비한다.
 [앱 릴리스 안내](https://github.com/GovBiz-Team/GovBiz/blob/develop/docs/msa-image-release.md)를 따른다.
-발행 CI의 활성화·공개 상태는 앱 릴리스 안내를 따른다. 상시 환경에는 아직 연결하지 않았다.
+발행 CI의 활성화·공개 상태는 앱 릴리스 안내를 따른다.
+Mac 유지형 자동 경로는 [portfolio GitOps](portfolio-gitops.md)에 따로 설명한다.
 
 2026-09-20 KST 기준 네 서비스의 [최초 GHCR 발행](https://github.com/GovBiz-Team/GovBiz/actions/runs/35457860821)이
 성공했다. 최초 공개 후 사용자 결정에 따라 삭제·재발행 없이 네 패키지를 **비공개**로 전환했고,
-익명 접근은 모두 HTTP 401로 거절됨을 확인했다. 자동 발행은 `MSA_RELEASE_ENABLED=false`로 중지했으며
-조직의 공개 패키지 생성 허용도 껐다. 비공개 전환 후 인증된 전체 pull·클러스터 배포는 아직 검증하지 않았다.
+익명 접근은 모두 HTTP 401로 거절됨을 확인했다. 전환 중 자동 발행을 잠시 중지했으나
+이후 사용자 승인으로 `MSA_RELEASE_ENABLED=true`로 재개했고 [비공개 발행](https://github.com/GovBiz-Team/GovBiz/actions/runs/35495417542)이 성공했다.
+조직의 공개 패키지 생성 허용은 다시 켜지 않았다.
 아래 도구는 대상 환경과 pull 인증을 별도로 준비한 뒤 사용한다.
 
 이 저장소는 **배포할 버전 선택**을 담당한다. `scripts/promote_image.py`는 검토한 receipt에서
 기존 비로컬 환경의 서비스 이미지 digest만 갱신한다. Git commit/push, AWS 인증, kubectl,
-Argo sync를 자동 실행하지 않는다. cross-repository 자동 쓰기 권한도 아직 연결하지 않았다.
+Argo sync를 자동 실행하지 않는다. 자동 경로는 별도 `scripts/sync_images.py`와
+`.github/workflows/sync-images.yml`이 담당한다. infra 자체 토큰으로 자기 저장소만 수정한다.
 
 ## 사용 전 조건
 
@@ -23,7 +26,7 @@ Argo sync를 자동 실행하지 않는다. cross-repository 자동 쓰기 권�
   `localMode: false`, 정확한 `serviceName`, `image.repository`, `image.pullPolicy: IfNotPresent` 또는
   `Always`, 빈 tag가 필요하다. 공개 패키지는 익명 pull을 확인한다. 외부 저장소·Secret·네트워크 경계는 별도다.
 - 이 도구는 환경 파일을 만들지 않으며 `local-msa`와 기존 local smoke 값을 수정하지 않는다.
-  **현재 비로컬 환경 파일은 없다. 아래 명령은 향후 대상 환경을 구성한 후 쓰는 예시다.**
+  현재 digest 환경은 `portfolio`이며 아래 `staging` 명령은 별도 환경을 준비한 후 쓰는 예시다.
 
 ## 미리보기와 적용 예시
 
@@ -61,4 +64,4 @@ python -B -m unittest discover -s scripts -p 'test_promote_image.py'
 같은 namespace의 `kubernetes.io/dockerconfigjson` Secret으로 주입하고, Helm 값에는
 `imagePullSecrets: [{name: ghcr-pull}]`처럼 이름만 기록한다. Secret 값은 Git/values에 넣지 않는다.
 현재 local-msa 검증 환경은 로컬 로드 이미지를 사용하므로 이 목록의 기본값 `[]`를 유지한다.
-향후 GHCR 비공개 이미지를 쓰는 환경에는 실제 Secret을 준비하고 참조를 설정해야 한다.
+`portfolio` 값에는 이 참조를 설정했으며 전용 bootstrap 도구로 실제 Secret을 Git 밖에서 주입한다.
