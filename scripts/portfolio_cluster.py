@@ -6,6 +6,7 @@ host application secrets, automatic deletion or existing Docker container stops.
 """
 import argparse
 import base64
+import getpass
 import hashlib
 import json
 import os
@@ -13,6 +14,7 @@ from pathlib import Path
 import secrets
 import stat
 import subprocess
+import sys
 import tempfile
 from urllib.request import Request, urlopen
 
@@ -97,7 +99,7 @@ def verify_context(kube):
 
 
 def prepare(args, state):
-    token = read_token(args.token_file)
+    token = read_token(args.token_file) if args.token_file else getpass.getpass("GHCR read-only token (hidden): ").strip()
     login = verify_token(token)
     if errors(helm=args.helm):
         raise ValueError("Portfolio configuration policy failed")
@@ -117,6 +119,7 @@ def prepare(args, state):
              "--kubeconfig", state / "kubeconfig", "--wait", "180s"], timeout=300)
     os.chmod(state / "kubeconfig", 0o600)
     verify_context(kube)
+    run(["docker", "update", "--restart=unless-stopped", CLUSTER + "-control-plane"])
 
     def apply(resources):
         # stdin only: never log credentials or create kubectl last-applied copies.
@@ -173,8 +176,8 @@ def main():
     if state == Path.home() or state == Path("/"):
         parser.error("Use a dedicated state directory")
     if args.action == "prepare":
-        if not args.token_file:
-            parser.error("prepare requires a 0600 read-only token file")
+        if not args.token_file and not sys.stdin.isatty():
+            parser.error("Non-interactive prepare requires a 0600 read-only token file")
         prepare(args, state)
         return
     kube, nk, ak = commands(state)

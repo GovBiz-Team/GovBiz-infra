@@ -2,6 +2,7 @@
 
 AWS/EKS 대신 사용자 Mac의 Docker Desktop에 `govbiz-portfolio` kind 클러스터를 유지한다.
 Mac이 잠들거나 Docker가 종료되면 배포도 중단되고, 다시 켜면 Argo CD가 Git의 현재 상태를 확인한다.
+전용 kind 노드에는 `unless-stopped` 재시작 정책을 설정한다. 직접 중지했다면 `docker start`로 재개한다.
 클라우드 운영·고가용성·공개 서비스가 아니라 포트폴리오용 배포 환경이다.
 기존 Compose와 데이터는 옮기지 않는다. 메모리 때문에 기존 GovBiz Compose는 중지하고 번갈아 사용한다.
 
@@ -40,7 +41,13 @@ linux/amd64 Docker Engine이 필요하다. 다른 아키텍처는 현재 발행 
 없으면 앱 저장소의 MSA 빌드 안내대로 먼저 준비한다. 네 앱 이미지는 로컬 load하지 않는다.
 
 GHCR 토큰은 classic PAT의 `read:packages`만 선택하고 만료를 설정한다. 토큰을 채팅·Git·셸 명령에
-직접 넣지 않는다. 소유자만 읽는 0600 임시 파일로 준비한다. 명령에는 값이 아닌 경로만 전달한다.
+직접 넣지 않는다. 대화형 터미널에서 다음 명령을 실행하면 숨김 입력으로 받으므로 파일에 저장할 필요가 없다.
+
+```bash
+python -B scripts/portfolio_cluster.py prepare
+```
+
+비대화형 실행은 소유자만 읽는 0600 임시 파일로 준비한다. 명령에는 값이 아닌 경로만 전달한다.
 
 ```bash
 python -B scripts/portfolio_cluster.py prepare \
@@ -83,7 +90,8 @@ kubectl --kubeconfig .local/portfolio/kubeconfig --context kind-govbiz-portfolio
 
 배포 일시 중지는 infra `MSA_PROMOTION_ENABLED=false`로 새 digest 반영부터 멈추고,
 필요하면 각 Application의 자동 sync도 끈다. 자동 sync가 켜진 채 kubectl만 수정하면 self-heal이 되돌린다.
-이미지 rollback은 검증된 이전 digest를 Git에 반영한다. DB migration을 자동으로 되돌리지는 않는다.
+이미지 rollback은 검증된 이전 서비스 values와 대응하는 `release.json`을 함께 Git에 반영한다.
+DB migration을 자동으로 되돌리지는 않는다.
 같은 발행 run은 재적용하지 않지만 새 성공 발행은 다시 승격되므로 롤백 유지 중에는 promotion을 끈다.
 
 클러스터를 삭제하지 않고 일시 정지하려면 전용 kind 노드만 중지한다.
